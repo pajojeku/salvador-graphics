@@ -1,0 +1,99 @@
+
+'use client';
+
+interface ToolbarProps {
+  selectedTool: string;
+  onToolSelect: (tool: string) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  onClear?: () => void;
+  currentColor?: string;
+  onColorChange?: (color: string) => void;
+}
+
+export default function Toolbar({ selectedTool, onToolSelect, onUndo, onRedo, onClear, currentColor = '#000000', onColorChange }: ToolbarProps) {
+  const tools = [
+    { id: 'select', icon: 'ri-cursor-line', tooltip: 'Select Tool (V)' },
+    { id: 'line', icon: 'ri-expand-diagonal-s-line', tooltip: 'Line Tool (L)' },
+    { id: 'rectangle', icon: 'ri-checkbox-blank-line', tooltip: 'Rectangle Tool (R)' },
+    { id: 'circle', icon: 'ri-checkbox-blank-circle-line', tooltip: 'Circle Tool (C)' },
+    { id: 'brush', icon: 'ri-brush-line', tooltip: 'Brush Tool (B)' },
+    //{ id: 'eraser', icon: 'ri-eraser-line', tooltip: 'Eraser Tool (E)' },
+    //{ id: 'eyedropper', icon: 'ri-drop-line', tooltip: 'Eyedropper Tool (I)' },
+    //{ id: 'text', icon: 'ri-text', tooltip: 'Text Tool (T)' },
+    //{ id: 'hand', icon: 'ri-hand-line', tooltip: 'Hand Tool (H)' },
+    //{ id: 'zoom', icon: 'ri-zoom-in-line', tooltip: 'Zoom Tool (Z)' }
+  ];
+
+  return (
+    <div className="w-12 bg-zinc-800 border-r border-zinc-700 flex flex-col">
+      <div className="flex flex-col">
+        {tools.map((tool, index) => (
+          <div key={tool.id} className="relative group">
+            <button
+              onClick={() => onToolSelect(tool.id)}
+              className={`w-full h-12 flex items-center justify-center cursor-pointer transition-colors ${
+                selectedTool === tool.id 
+                  ? 'bg-zinc-600 text-white' 
+                  : 'text-zinc-400 hover:bg-zinc-700 hover:text-white'
+              }`}
+              title={tool.tooltip}
+            >
+              <i className={`${tool.icon} text-lg w-5 h-5 flex items-center justify-center`}></i>
+            </button>
+            {(index === 3 || index === 6) && (
+              <div className="h-px bg-zinc-700 mx-2"></div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Edit Actions */}
+      <div className="mt-4 border-t border-zinc-700 pt-2">
+        {onUndo && (
+          <button
+            onClick={onUndo}
+            className="w-full h-10 flex items-center justify-center text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
+            title="Undo (Ctrl+Z)"
+          >
+            <i className="ri-arrow-go-back-line text-lg"></i>
+          </button>
+        )}
+        {onRedo && (
+          <button
+            onClick={onRedo}
+            className="w-full h-10 flex items-center justify-center text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
+            title="Redo (Ctrl+Y)"
+          >
+            <i className="ri-arrow-go-forward-line text-lg"></i>
+          </button>
+        )}
+        {onClear && (
+          <button
+            onClick={onClear}
+            className="w-full h-10 flex items-center justify-center text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
+            title="Clear Canvas"
+          >
+            <i className="ri-delete-bin-line text-lg"></i>
+          </button>
+        )}
+      </div>
+      
+      {/* Color Picker */}
+      <div className="mt-auto px-2 mb-4">
+        <div className="relative group">
+          <input
+            type="color"
+            value={currentColor}
+            onChange={(e) => onColorChange?.(e.target.value)}
+            className="w-8 h-8 border border-zinc-600 rounded cursor-pointer"
+            title="Pick Color"
+          />
+          <div className="absolute left-full ml-2 bottom-0 bg-zinc-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+            {currentColor}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
