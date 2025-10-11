@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logotype.png" alt="Salvador Logo" width="400"/>
+  <img src="logotype.png" alt="Salvador Logo" width="800"/>
   
   # Salvador Graphics Editor
   
