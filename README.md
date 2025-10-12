@@ -1,8 +1,6 @@
 <div align="center">
   <img src="logotype.png" alt="Salvador Logo" width="800"/>
   
-  # Salvador Graphics Editor
-  
   **Browser-based graphics editor inspired by Photoshop and GIMP**
   
   [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
