@@ -8,9 +8,9 @@ import { projectStorage, type Project, generateThumbnail } from '@/lib/projectSt
 export default function StartScreen() {
   const router = useRouter();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [projectName, setProjectName] = useState('');
-  const [projectWidth, setProjectWidth] = useState(1920);
-  const [projectHeight, setProjectHeight] = useState(1080);
+  const [projectName, setProjectName] = useState('My project');
+  const [projectWidth, setProjectWidth] = useState(640);
+  const [projectHeight, setProjectHeight] = useState(480);
   const [recentProjects, setRecentProjects] = useState<Project[]>([]);
 
   // Generate preview thumbnail
