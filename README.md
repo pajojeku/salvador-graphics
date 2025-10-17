@@ -23,7 +23,7 @@ Salvador is a pixel-based graphics editor built as a university project for **Co
 
 - **Next.js** - React framework
 - **TypeScript** - Type-safe development
-- **Canvas API** - Low-level pixel manipulation
+- **Canvas** - Low-level pixel manipulation
 - **Tailwind CSS** - Styling
 
 ## Getting Started
@@ -34,6 +34,6 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) to start creating!
 
-or check out demo at: [https://pajojeku.github.io](https://pajojeku.github.io)
+or check out demo at: [https://pajojeku-salvador.netlify.app/](https://pajojeku-salvador.netlify.app/) - might not use latest version!
 
 ---
