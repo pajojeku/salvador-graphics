@@ -14,7 +14,7 @@ export default function Header({ projectName, onExportPNG, onSaveProject, onLoad
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
   const menuItems = [
-    { name: '🫟 Salvador', icon: 'ri-home-line', isHome: true },
+    { name: 'Salvador', icon: 'ri-home-line', isHome: true, logo: '/icon.png' },
     { name: 'File', hasDropdown: true },
     { name: 'Edit', hasDropdown: true },
   ];
@@ -42,7 +42,8 @@ export default function Header({ projectName, onExportPNG, onSaveProject, onLoad
             <div key={item.name} className="relative">
               {item.isHome ? (
                 <Link href="/">
-                  <button className="flex font-bold items-center space-x-1 px-3 py-1 text-sm text-zinc-300 hover:bg-zinc-700 rounded whitespace-nowrap cursor-pointer">
+                  <button className="flex font-bold items-center space-x-2 px-3 py-1 text-sm text-zinc-300 hover:bg-zinc-700 rounded whitespace-nowrap cursor-pointer">
+                    {item.logo && <img src={item.logo} alt="Salvador" className="w-5 h-5" />}
                     <span>{item.name}</span>
                   </button>
                 </Link>

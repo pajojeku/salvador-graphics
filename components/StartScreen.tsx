@@ -140,7 +140,7 @@ export default function StartScreen() {
         <div className="mb-8 mt-2">
           <div className="text-center mb-2">
             <h1 className="text-3xl font-bold text-white flex items-center justify-center space-x-2">
-              <span>🫟</span>
+              <img src="/icon.png" alt="Salvador" className="w-8 h-8" />
               <span >Salvador</span>
             </h1>
             <p className="text-sm text-zinc-500 mt-1">Graphics Editor</p>

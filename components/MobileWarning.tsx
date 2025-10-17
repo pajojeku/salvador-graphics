@@ -32,7 +32,10 @@ export default function MobileWarning() {
       <div className="max-w-md text-center">
         <div className="mb-8">
           <i className="ri-computer-line text-6xl text-blue-400 mb-4"></i>
-          <h1 className="text-2xl font-bold text-white mb-4">Salvador</h1>
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            <img src="/icon.png" alt="Salvador" className="w-8 h-8" />
+            <h1 className="text-2xl font-bold text-white">Salvador</h1>
+          </div>
           <p className="text-zinc-300 mb-6">
             Profesjonalny edytor graficzny inspirowany Photoshopem
           </p>

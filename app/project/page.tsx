@@ -244,7 +244,7 @@ function ProjectContent() {
           {/* Logo Salvador */}
           <div className="mb-6">
             <h1 className="text-5xl font-bold text-white flex items-center justify-center space-x-3 mb-2">
-              <span>🫟</span>
+              <img src="/icon.png" alt="Salvador" className="w-12 h-12" />
               <span>Salvador</span>
             </h1>
             <p className="text-sm text-zinc-500">Graphics Editor</p>
@@ -270,7 +270,7 @@ function ProjectContent() {
           {/* Logo Salvador */}
           <div className="mb-8">
             <h1 className="text-5xl font-bold text-white flex items-center justify-center space-x-3 mb-2">
-              <span>🫟</span>
+              <img src="/icon.png" alt="Salvador" className="w-12 h-12" />
               <span>Salvador</span>
             </h1>
             <p className="text-sm text-zinc-500">Graphics Editor</p>
