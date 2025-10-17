@@ -36,6 +36,8 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
   const [currentBrush, setCurrentBrush] = useState<Brush | null>(null);
   const [isMouseOutside, setIsMouseOutside] = useState(false);
   const updateTrigger = useRef(0);
+  const lastRenderTime = useRef<number>(0);
+  const renderAnimationFrame = useRef<number | null>(null);
 
   // Helper do rysowania linii piksel po pikselu (bez anti-aliasingu)
   const drawPixelLine = (
@@ -72,15 +74,22 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     let y = y0;
 
     while (true) {
-      // Rysuj piksel (lub kilka dla thickness > 1)
-      if (thickness === 1) {
-        setPixel(x, y);
+      // Rysuj piksel (lub kilka dla thickness >= 3)
+      if (thickness <= 3) {
+        for (let dy = -Math.floor(thickness / 2); dy <= Math.floor(thickness / 2); dy++) {
+          setPixel(x, y + dy);
+        }
       } else {
-        // Dla thickness=2, rysuj 2x2 kwadrat
-        const offset = Math.floor(thickness / 2);
+        // Dla thickness > 3, rysuj okrągły pędzel
+        const radius = thickness / 2;
+        const radiusSquared = radius * radius;
+        const offset = Math.ceil(radius);
         for (let dy = -offset; dy <= offset; dy++) {
           for (let dx = -offset; dx <= offset; dx++) {
-            setPixel(x + dx, y + dy);
+            const distSquared = dx * dx + dy * dy;
+            if (distSquared <= radiusSquared) {
+              setPixel(x + dx, y + dy);
+            }
           }
         }
       }
@@ -110,6 +119,19 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     } : { r: 0, g: 0, b: 0, a: 255 };
   };
 
+  // Throttled render - renderuj maksymalnie ~60 FPS
+  const throttledRender = (manager: CanvasManager) => {
+    if (renderAnimationFrame.current !== null) {
+      return; // Render już zaplanowany
+    }
+    
+    renderAnimationFrame.current = requestAnimationFrame(() => {
+      manager.render();
+      refreshCanvas(manager);
+      renderAnimationFrame.current = null;
+    });
+  };
+
   // Helper do pobierania context z wyłączonym wygładzaniem
   const getPixelPerfectContext = () => {
     if (!canvasRef.current) return null;
@@ -125,7 +147,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     const mgr = manager || canvasManager;
     if (mgr && canvasRef.current) {
       console.log('refreshCanvas called');
-      mgr.render(); // IMPORTANT: Render shapes first!
+      mgr.render();
       const ctx = getPixelPerfectContext();
       if (ctx) {
         ctx.putImageData(mgr.getImageData(), 0, 0);
@@ -227,6 +249,11 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       }
       if (canvasRefreshRef) {
         canvasRefreshRef.current = null;
+      }
+      // Anuluj oczekujący render
+      if (renderAnimationFrame.current !== null) {
+        cancelAnimationFrame(renderAnimationFrame.current);
+        renderAnimationFrame.current = null;
       }
     };
   }, [project, canvasManagerRef, canvasRefreshRef]);
@@ -377,10 +404,36 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       if (shape) {
         // Zaznacz i przygotuj do przesuwania
         canvasManager.selectShape(shape.id);
+        
+        // Oblicz offset w zależności od typu kształtu
+        let shapeX = 0;
+        let shapeY = 0;
+        
+        if (shape.type === 'brush') {
+          // Dla brush użyj pierwszego punktu
+          const brush = shape as Brush;
+          if (brush.points.length > 0) {
+            shapeX = brush.points[0].x;
+            shapeY = brush.points[0].y;
+          }
+        } else if (shape.type === 'rectangle') {
+          const rect = shape as Rectangle;
+          shapeX = rect.x;
+          shapeY = rect.y;
+        } else if (shape.type === 'circle') {
+          const circle = shape as Circle;
+          shapeX = circle.center.x;
+          shapeY = circle.center.y;
+        } else if (shape.type === 'line') {
+          const line = shape as Line;
+          shapeX = line.start.x;
+          shapeY = line.start.y;
+        }
+        
         setSelectedShape({
           shape,
-          offsetX: x - (shape as any).x || x - (shape as any).center?.x || x - (shape as any).start?.x || 0,
-          offsetY: y - (shape as any).y || y - (shape as any).center?.y || y - (shape as any).start?.y || 0
+          offsetX: x - shapeX,
+          offsetY: y - shapeY
         });
         setIsDragging(true);
         canvasManager.render();
@@ -395,10 +448,42 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     } else if (currentTool === 'brush') {
       // Rozpocznij rysowanie pędzlem
       const color = hexToRgb(currentColor);
-      const brush = new Brush([{ x, y }], color, strokeWidth);
+      const roundedX = Math.floor(x);
+      const roundedY = Math.floor(y);
+      const brush = new Brush([{ x: roundedX, y: roundedY }], color, strokeWidth);
+      console.log('[BRUSH START] Pierwszy punkt:', { x: roundedX, y: roundedY });
       setCurrentBrush(brush);
       setIsDrawing(true);
       setIsMouseOutside(false); // Resetuj flagę na początku rysowania
+      
+      // Narysuj pierwszy punkt od razu (dla pojedynczego kliknięcia)
+      const ctx = getPixelPerfectContext();
+      if (ctx) {
+        // Dla wszystkich pędzli - rysuj bezpośrednio piksele bez anti-aliasingu
+        const imageData = ctx.getImageData(0, 0, project!.width, project!.height);
+        const data = imageData.data;
+        const radius = strokeWidth / 2;
+        const radiusSquared = radius * radius;
+        const offset = Math.ceil(radius);
+        
+        for (let dy = -offset; dy <= offset; dy++) {
+          for (let dx = -offset; dx <= offset; dx++) {
+            const distSquared = dx * dx + dy * dy;
+            if (distSquared <= radiusSquared) {
+              const px = roundedX + dx;
+              const py = roundedY + dy;
+              if (px >= 0 && px < project!.width && py >= 0 && py < project!.height) {
+                const index = (py * project!.width + px) * 4;
+                data[index] = color.r;
+                data[index + 1] = color.g;
+                data[index + 2] = color.b;
+                data[index + 3] = color.a;
+              }
+            }
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
     } else {
       // Tryb rysowania innych kształtów
       setStartPoint({ x, y });
@@ -431,115 +516,127 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     // Zmiana rozmiaru (resize)
     if (isResizing && selectedShape && resizeHandle && resizeStartPoint && currentTool === 'select') {
       const shape = selectedShape.shape;
-      const dx = x - resizeStartPoint.x;
-      const dy = y - resizeStartPoint.y;
+      
+      // Zaokrąglij do pełnych pikseli
+      const dx = Math.round(x - resizeStartPoint.x);
+      const dy = Math.round(y - resizeStartPoint.y);
+      
+      // Zmień rozmiar tylko jeśli jest rzeczywista zmiana
+      if (dx === 0 && dy === 0) {
+        return;
+      }
       
       if (shape.type === 'circle') {
         const circle = shape as Circle;
         if (resizeHandle === 'right' || resizeHandle === 'left') {
-          circle.radius = Math.max(1, Math.abs(circle.radius + (resizeHandle === 'right' ? dx : -dx)));
+          circle.radius = Math.max(1, Math.round(Math.abs(circle.radius + (resizeHandle === 'right' ? dx : -dx))));
         } else {
-          circle.radius = Math.max(1, Math.abs(circle.radius + (resizeHandle === 'bottom' ? dy : -dy)));
+          circle.radius = Math.max(1, Math.round(Math.abs(circle.radius + (resizeHandle === 'bottom' ? dy : -dy))));
         }
       } else if (shape.type === 'rectangle') {
         const rect = shape as Rectangle;
         if (resizeHandle === 'top-left') {
-          rect.width -= dx;
-          rect.height -= dy;
-          rect.x += dx;
-          rect.y += dy;
+          rect.width = Math.round(rect.width - dx);
+          rect.height = Math.round(rect.height - dy);
+          rect.x = Math.round(rect.x + dx);
+          rect.y = Math.round(rect.y + dy);
         } else if (resizeHandle === 'top-right') {
-          rect.width += dx;
-          rect.height -= dy;
-          rect.y += dy;
+          rect.width = Math.round(rect.width + dx);
+          rect.height = Math.round(rect.height - dy);
+          rect.y = Math.round(rect.y + dy);
         } else if (resizeHandle === 'bottom-left') {
-          rect.width -= dx;
-          rect.height += dy;
-          rect.x += dx;
+          rect.width = Math.round(rect.width - dx);
+          rect.height = Math.round(rect.height + dy);
+          rect.x = Math.round(rect.x + dx);
         } else if (resizeHandle === 'bottom-right') {
-          rect.width += dx;
-          rect.height += dy;
+          rect.width = Math.round(rect.width + dx);
+          rect.height = Math.round(rect.height + dy);
         }
       } else if (shape.type === 'line') {
         const line = shape as Line;
         if (resizeHandle === 'start') {
-          line.start.x += dx;
-          line.start.y += dy;
+          line.start.x = Math.round(line.start.x + dx);
+          line.start.y = Math.round(line.start.y + dy);
         } else if (resizeHandle === 'end') {
-          line.end.x += dx;
-          line.end.y += dy;
+          line.end.x = Math.round(line.end.x + dx);
+          line.end.y = Math.round(line.end.y + dy);
         }
       }
       
-      setResizeStartPoint({ x, y });
-      canvasManager.render();
-      refreshCanvas();
+      setResizeStartPoint({ x: Math.round(x), y: Math.round(y) });
+      throttledRender(canvasManager);
       return;
     }
 
     // Przesuwanie figury
     if (isDragging && selectedShape && currentTool === 'select') {
       const shape = selectedShape.shape;
-      const newX = x - selectedShape.offsetX;
-      const newY = y - selectedShape.offsetY;
+      
+      // Zaokrąglij współrzędne do pełnych pikseli aby zmniejszyć liczbę renderów
+      const newX = Math.round(x - selectedShape.offsetX);
+      const newY = Math.round(y - selectedShape.offsetY);
 
-      // Oblicz przesunięcie
-      const currentX = (shape as any).x || (shape as any).center?.x || (shape as any).start?.x || 0;
-      const currentY = (shape as any).y || (shape as any).center?.y || (shape as any).start?.y || 0;
+      // Oblicz aktualną pozycję w zależności od typu kształtu
+      let currentX = 0;
+      let currentY = 0;
+      
+      if (shape.type === 'brush') {
+        const brush = shape as Brush;
+        if (brush.points.length > 0) {
+          currentX = Math.round(brush.points[0].x);
+          currentY = Math.round(brush.points[0].y);
+        }
+      } else if (shape.type === 'rectangle') {
+        const rect = shape as Rectangle;
+        currentX = Math.round(rect.x);
+        currentY = Math.round(rect.y);
+      } else if (shape.type === 'circle') {
+        const circle = shape as Circle;
+        currentX = Math.round(circle.center.x);
+        currentY = Math.round(circle.center.y);
+      } else if (shape.type === 'line') {
+        const line = shape as Line;
+        currentX = Math.round(line.start.x);
+        currentY = Math.round(line.start.y);
+      }
       
       const dx = newX - currentX;
       const dy = newY - currentY;
 
-      shape.move(dx, dy);
-      canvasManager.render();
-      refreshCanvas();
+      // Przesuń tylko jeśli jest rzeczywista zmiana (nie renderuj dla submikselowych ruchów)
+      if (dx !== 0 || dy !== 0) {
+        shape.move(dx, dy);
+        throttledRender(canvasManager);
+      }
       return;
     }
 
     // Rysowanie pędzlem
     if (isDrawing && currentTool === 'brush' && currentBrush) {
-      // Clampuj współrzędne do granic canvas
-      const clampedX = Math.max(0, Math.min(x, project!.width));
-      const clampedY = Math.max(0, Math.min(y, project!.height));
+      // Clampuj współrzędne do granic canvas i zaokrąglij do pełnych pikseli
+      const clampedX = Math.floor(Math.max(0, Math.min(x, project!.width)));
+      const clampedY = Math.floor(Math.max(0, Math.min(y, project!.height)));
       
       const prevPoint = currentBrush.points[currentBrush.points.length - 1];
-      currentBrush.addPoint({ x: clampedX, y: clampedY });
+      
+      // Dodaj punkt tylko jeśli to inny piksel niż poprzedni
+      if (prevPoint.x !== clampedX || prevPoint.y !== clampedY) {
+        currentBrush.addPoint({ x: clampedX, y: clampedY });
+        console.log('[BRUSH MOVE] Dodano punkt:', { x: clampedX, y: clampedY }, 'Łącznie punktów:', currentBrush.points.length);
+      }
       
       // Rysuj tylko nowy segment pędzla bezpośrednio na canvasie
       const ctx = getPixelPerfectContext();
       if (ctx) {
-        // Dla małych pędzli (1-2px) - rysuj bezpośrednio piksele bez anti-aliasingu
-        if (strokeWidth <= 2) {
-          const imageData = ctx.getImageData(0, 0, project!.width, project!.height);
-          const color = hexToRgb(currentColor);
-          
-          // Rysuj linię Bresenhama między punktami
-          drawPixelLine(imageData, Math.floor(prevPoint.x), Math.floor(prevPoint.y), 
-                            Math.floor(clampedX), Math.floor(clampedY), color, strokeWidth);
-          
-          ctx.putImageData(imageData, 0, 0);
-        } else {
-          // Dla większych pędzli - użyj canvas API
-          ctx.fillStyle = currentColor;
-          ctx.strokeStyle = currentColor;
-          ctx.lineWidth = strokeWidth;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          
-          // Jeśli mysz właśnie wróciła z zewnątrz, nie rysuj linii - tylko zacznij nowy punkt
-          if (!isMouseOutside) {
-            ctx.beginPath();
-            ctx.moveTo(prevPoint.x, prevPoint.y);
-            ctx.lineTo(clampedX, clampedY);
-            ctx.stroke();
-          } else {
-            // Mysz wróciła - narysuj tylko punkt, nie linię
-            ctx.beginPath();
-            ctx.arc(clampedX, clampedY, strokeWidth / 2, 0, 2 * Math.PI);
-            ctx.fill();
-            setIsMouseOutside(false); // Resetuj flagę
-          }
-        }
+        // Dla wszystkich pędzli - rysuj bezpośrednio piksele bez anti-aliasingu
+        const imageData = ctx.getImageData(0, 0, project!.width, project!.height);
+        const color = hexToRgb(currentColor);
+        
+        // Rysuj linię Bresenhama między punktami
+        drawPixelLine(imageData, Math.floor(prevPoint.x), Math.floor(prevPoint.y), 
+                          Math.floor(clampedX), Math.floor(clampedY), color, strokeWidth);
+        
+        ctx.putImageData(imageData, 0, 0);
       }
       return;
     }
@@ -610,19 +707,22 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     // Pędzel - "zapieczętuj" aktualny stan canvas
     if (currentTool === 'brush' && currentBrush) {
       // Pędzel jest już narysowany na canvasie przez handleMouseMove
-      // Teraz musimy zaktualizować imageData w canvasManager
-      const ctx = getPixelPerfectContext();
-      if (ctx) {
-        const currentImageData = ctx.getImageData(0, 0, project!.width, project!.height);
-        // Zaktualizuj wewnętrzny bufor w canvasManager
-        const managerImageData = canvasManager.getImageData();
-        managerImageData.data.set(currentImageData.data);
-      }
+      // Teraz dodajemy go jako shape z zebranymi punktami
+      
+      console.log('[BRUSH END] Zakończono rysowanie. Zebrano punktów:', currentBrush.points.length);
+      console.log('[BRUSH END] Wszystkie punkty:', currentBrush.points);
+      
+      // Dodaj brush jako shape z zebranymi punktami
+      canvasManager.addShape(currentBrush);
+      console.log('[BRUSH END] Shape dodany do canvasManager');
+      
+      // Odśwież canvas - przerenderuj wszystkie shape'y
+      canvasManager.render();
+      refreshCanvas();
       
       setCurrentBrush(null);
       setIsDrawing(false);
       setIsMouseOutside(false); // Resetuj flagę
-      // NIE dodajemy brush do shapes - został już narysowany bezpośrednio
       return;
     }
 

@@ -111,7 +111,7 @@ export default function LayerPanel({ selectedLayer, onLayerSelect, shapes = [], 
                   </div>
                   <span className="text-sm text-zinc-300 flex-1">{displayName}</span>
                   <button 
-                    className="text-zinc-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="text-zinc-400 hover:text-red-400 transition-colors"
                     onClick={(e) => {
                       e.stopPropagation();
                       onShapeDelete?.(shape.id);

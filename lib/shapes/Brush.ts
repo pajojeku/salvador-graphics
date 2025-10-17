@@ -15,7 +15,24 @@ export class Brush extends Shape {
     const width = imageData.width;
     const height = imageData.height;
 
-    // Rysuj linie między punktami dla ciągłego śladu
+    // Jeśli zaznaczony, najpierw narysuj niebieską obwódkę (szerszy brush)
+    if (this.selected) {
+      const outlineColor: Color = { r: 0, g: 100, b: 255, a: 255 };
+      const outlineSize = this.size + 2; // 2 piksele szerszy niż oryginalny
+      
+      for (let i = 0; i < this.points.length; i++) {
+        const point = this.points[i];
+        
+        if (i > 0) {
+          const prevPoint = this.points[i - 1];
+          this.drawLineWithColor(data, width, height, prevPoint, point, outlineColor, outlineSize);
+        }
+        
+        this.drawCircleWithColor(data, width, height, point, outlineColor, outlineSize);
+      }
+    }
+
+    // Rysuj właściwy brush (oryginalnym kolorem)
     for (let i = 0; i < this.points.length; i++) {
       const point = this.points[i];
       
@@ -31,6 +48,10 @@ export class Brush extends Shape {
   }
 
   private drawLine(data: Uint8ClampedArray, width: number, height: number, from: Point, to: Point): void {
+    this.drawLineWithColor(data, width, height, from, to, this.color, this.size);
+  }
+
+  private drawLineWithColor(data: Uint8ClampedArray, width: number, height: number, from: Point, to: Point, color: Color, size: number): void {
     const dx = Math.abs(to.x - from.x);
     const dy = Math.abs(to.y - from.y);
     const sx = from.x < to.x ? 1 : -1;
@@ -41,7 +62,7 @@ export class Brush extends Shape {
     let y = from.y;
     
     while (true) {
-      this.drawCircle(data, width, height, { x, y });
+      this.drawCircleWithColor(data, width, height, { x, y }, color, size);
       
       if (x === to.x && y === to.y) break;
       
@@ -58,23 +79,32 @@ export class Brush extends Shape {
   }
 
   private drawCircle(data: Uint8ClampedArray, width: number, height: number, center: Point): void {
+    this.drawCircleWithColor(data, width, height, center, this.color, this.size);
+  }
 
-    const offset = Math.floor(this.size / 2);
+  private drawCircleWithColor(data: Uint8ClampedArray, width: number, height: number, center: Point, color: Color, size: number): void {
+    const radius = size / 2;
+    const radiusSquared = radius * radius;
+    const offset = Math.ceil(radius);
+    
     for (let dy = -offset; dy <= offset; dy++) {
       for (let dx = -offset; dx <= offset; dx++) {
-        const x = Math.floor(center.x) + dx;
-        const y = Math.floor(center.y) + dy;
-        
-        if (x >= 0 && x < width && y >= 0 && y < height) {
-          const index = (y * width + x) * 4;
-          data[index] = this.color.r;
-          data[index + 1] = this.color.g;
-          data[index + 2] = this.color.b;
-          data[index + 3] = this.color.a;
+        // Sprawdź czy punkt jest wewnątrz okręgu
+        const distSquared = dx * dx + dy * dy;
+        if (distSquared <= radiusSquared) {
+          const x = Math.floor(center.x) + dx;
+          const y = Math.floor(center.y) + dy;
+          
+          if (x >= 0 && x < width && y >= 0 && y < height) {
+            const index = (y * width + x) * 4;
+            data[index] = color.r;
+            data[index + 1] = color.g;
+            data[index + 2] = color.b;
+            data[index + 3] = color.a;
+          }
         }
       }
     }
-    
   }
 
   containsPoint(point: Point): boolean {
