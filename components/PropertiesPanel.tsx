@@ -403,24 +403,77 @@ export default function PropertiesPanel({
             {/* Brush Properties */}
             {selectedShape instanceof Brush && (
               <div className="space-y-2 text-xs">
-                <div className="text-zinc-400">
-                  Points: <span className="text-zinc-300">{selectedShape.points.length}</span>
-                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-zinc-400 block mb-1">Size</label>
+                    <label className="text-zinc-400 block mb-1">X</label>
                     <input
                       type="number"
-                      value={selectedShape.size}
+                      value={selectedShape.points.length > 0 ? Math.round(selectedShape.points[0].x) : 0}
                       onInput={(e) => {
-                        const val = Math.max(1, Number((e.target as HTMLInputElement).value) || 1);
-                        selectedShape.size = val;
-                        selectedShape.strokeWidth = val;
-                        onShapeUpdate?.();
+                        if (selectedShape.points.length > 0) {
+                          const oldX = selectedShape.points[0].x;
+                          const newX = Number((e.target as HTMLInputElement).value) || 0;
+                          const dx = newX - oldX;
+                          selectedShape.move(dx, 0);
+                          onShapeUpdate?.();
+                        }
                       }}
                       className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
                     />
                   </div>
+                  <div>
+                    <label className="text-zinc-400 block mb-1">Y</label>
+                    <input
+                      type="number"
+                      value={selectedShape.points.length > 0 ? Math.round(selectedShape.points[0].y) : 0}
+                      onInput={(e) => {
+                        if (selectedShape.points.length > 0) {
+                          const oldY = selectedShape.points[0].y;
+                          const newY = Number((e.target as HTMLInputElement).value) || 0;
+                          const dy = newY - oldY;
+                          selectedShape.move(0, dy);
+                          onShapeUpdate?.();
+                        }
+                      }}
+                      className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
+                    />
+                  </div>
+                </div>
+                
+                {/* Size/Stroke Width */}
+                <div className="space-y-2 mt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-400">Size</span>
+                    <div className="flex items-center space-x-2">
+                      <input 
+                        type="number" 
+                        min="1" 
+                        max="100" 
+                        value={selectedShape.size}
+                        onInput={(e) => {
+                          const val = Math.max(1, Number((e.target as HTMLInputElement).value) || 1);
+                          selectedShape.size = val;
+                          selectedShape.strokeWidth = val;
+                          onShapeUpdate?.();
+                        }}
+                        className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1 w-16"
+                      />
+                      <span className="text-xs text-zinc-400">px</span>
+                    </div>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="100" 
+                    value={selectedShape.size}
+                    onInput={(e) => {
+                      const val = Math.max(1, Number((e.target as HTMLInputElement).value) || 1);
+                      selectedShape.size = val;
+                      selectedShape.strokeWidth = val;
+                      onShapeUpdate?.();
+                    }}
+                    className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
+                  />
                 </div>
               </div>
             )}
