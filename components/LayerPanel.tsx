@@ -65,17 +65,10 @@ export default function LayerPanel({ selectedLayer, onLayerSelect, shapes = [], 
 
       {/* Layer Controls */}
       <div className="bg-zinc-800 border-b border-zinc-700 px-2 py-1 flex items-center justify-between">
-        <div className="flex items-center space-x-1">
-          <select className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1 pr-8">
-            <option>Normal</option>
-            <option>Multiply</option>
-            <option>Screen</option>
-            <option>Overlay</option>
-          </select>
-        </div>
+
         <div className="flex items-center space-x-2">
           <span className="text-xs text-zinc-400">Opacity:</span>
-          <span className="text-xs text-zinc-300">100%</span>
+          <span className="text-xs text-zinc-300">100% (WIP)</span>
         </div>
       </div>
 

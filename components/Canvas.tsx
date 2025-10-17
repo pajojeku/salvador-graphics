@@ -695,6 +695,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
             width={project.width}
             height={project.height}
             className="w-full h-full"
+            draggable={false}
             style={{ 
               cursor: getCursorStyle(),
               imageRendering: 'pixelated' // Ostre piksele bez interpolacji
