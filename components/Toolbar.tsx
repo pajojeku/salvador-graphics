@@ -41,9 +41,6 @@ export default function Toolbar({ selectedTool, onToolSelect, onUndo, onRedo, on
             >
               <i className={`${tool.icon} text-lg w-5 h-5 flex items-center justify-center`}></i>
             </button>
-            {(index === 3 || index === 6) && (
-              <div className="h-px bg-zinc-700 mx-2"></div>
-            )}
           </div>
         ))}
       </div>
@@ -54,7 +51,7 @@ export default function Toolbar({ selectedTool, onToolSelect, onUndo, onRedo, on
           <button
             onClick={onUndo}
             className="w-full h-10 flex items-center justify-center text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
-            title="Undo (Ctrl+Z)"
+            title="Undo (Ctrl+Z) Work-in-progress"
           >
             <i className="ri-arrow-go-back-line text-lg"></i>
           </button>
@@ -63,7 +60,7 @@ export default function Toolbar({ selectedTool, onToolSelect, onUndo, onRedo, on
           <button
             onClick={onRedo}
             className="w-full h-10 flex items-center justify-center text-zinc-400 hover:bg-zinc-700 hover:text-white transition-colors"
-            title="Redo (Ctrl+Y)"
+            title="Redo (Ctrl+Y) Work-in-progress"
           >
             <i className="ri-arrow-go-forward-line text-lg"></i>
           </button>

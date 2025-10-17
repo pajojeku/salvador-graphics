@@ -23,6 +23,7 @@ function ProjectContent() {
   const [currentColor, setCurrentColor] = useState('#000000');
   const [strokeWidth, setStrokeWidth] = useState(1);
   const [shapes, setShapes] = useState<Shape[]>([]);
+  const [selectedShape, setSelectedShape] = useState<Shape | null>(null);
   const canvasManagerRef = useRef<CanvasManager | null>(null);
   const canvasRefreshRef = useRef<(() => void) | null>(null);
 
@@ -77,6 +78,8 @@ function ProjectContent() {
     if (canvasManagerRef.current) {
       const allShapes = canvasManagerRef.current.getAllShapes();
       setShapes([...allShapes]);
+      const selected = canvasManagerRef.current.getSelectedShape();
+      setSelectedShape(selected);
     }
   };
 
@@ -92,6 +95,25 @@ function ProjectContent() {
     if (canvasManagerRef.current) {
       canvasManagerRef.current.toggleShapeVisibility(shapeId);
       canvasRefreshRef.current?.();
+      updateShapesList();
+    }
+  };
+
+  const handleShapeSelect = (shapeId: string) => {
+    if (canvasManagerRef.current) {
+      canvasManagerRef.current.selectShape(shapeId);
+      canvasRefreshRef.current?.();
+      updateShapesList();
+    }
+  };
+
+  const handleShapeUpdate = () => {
+    console.log('handleShapeUpdate called', { 
+      hasCanvasManager: !!canvasManagerRef.current,
+      hasRefreshFunc: !!canvasRefreshRef.current 
+    });
+    if (canvasManagerRef.current && canvasRefreshRef.current) {
+      canvasRefreshRef.current();
       updateShapesList();
     }
   };
@@ -316,10 +338,13 @@ function ProjectContent() {
               shapes={shapes}
               onShapeDelete={handleShapeDelete}
               onShapeToggleVisibility={handleShapeToggleVisibility}
+              onShapeSelect={handleShapeSelect}
             />
             <PropertiesPanel 
               strokeWidth={strokeWidth}
               onStrokeWidthChange={setStrokeWidth}
+              selectedShape={selectedShape}
+              onShapeUpdate={handleShapeUpdate}
             />
           </div>
         </div>

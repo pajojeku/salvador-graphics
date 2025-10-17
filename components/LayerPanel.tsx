@@ -10,9 +10,10 @@ interface LayerPanelProps {
   shapes?: Shape[];
   onShapeDelete?: (shapeId: string) => void;
   onShapeToggleVisibility?: (shapeId: string) => void;
+  onShapeSelect?: (shapeId: string) => void;
 }
 
-export default function LayerPanel({ selectedLayer, onLayerSelect, shapes = [], onShapeDelete, onShapeToggleVisibility }: LayerPanelProps) {
+export default function LayerPanel({ selectedLayer, onLayerSelect, shapes = [], onShapeDelete, onShapeToggleVisibility, onShapeSelect }: LayerPanelProps) {
   const [activeTab, setActiveTab] = useState('layers');
 
   // Generuj nazwy dla kształtów z licznikami
@@ -58,7 +59,7 @@ export default function LayerPanel({ selectedLayer, onLayerSelect, shapes = [], 
       <div className="bg-zinc-800 border-b border-zinc-700 px-4 py-2">
         <div className="flex items-center space-x-2">
           <i className="ri-settings-3-line text-zinc-400 w-4 h-4 flex items-center justify-center"></i>
-          <span className="text-sm text-zinc-300">Layers</span>
+          <span className="text-sm text-zinc-300">Layers (Work-in-progress)</span>
         </div>
       </div>
 
@@ -79,7 +80,7 @@ export default function LayerPanel({ selectedLayer, onLayerSelect, shapes = [], 
       </div>
 
       {/* Layers List */}
-      <div className="flex-1 overflow-y-auto bg-zinc-800 max-h-52 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-zinc-800">
+      <div className="flex-1 overflow-y-auto bg-zinc-800 max-h-48 scrollbar-thin scrollbar-thumb-zinc-600 scrollbar-track-zinc-800">
         {shapes.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-zinc-500">
             <div className="text-center">
@@ -94,9 +95,12 @@ export default function LayerPanel({ selectedLayer, onLayerSelect, shapes = [], 
             return (
               <div
                 key={shape.id}
-                onClick={() => onLayerSelect(displayName)}
+                onClick={() => {
+                  onLayerSelect(displayName);
+                  onShapeSelect?.(shape.id);
+                }}
                 className={`group flex items-center px-2 py-1 cursor-pointer border-b border-zinc-700 ${
-                  selectedLayer === displayName ? 'bg-zinc-600' : 'hover:bg-zinc-700'
+                  shape.selected ? 'bg-zinc-600' : 'hover:bg-zinc-700'
                 }`}
               >
                 <div className="flex items-center space-x-2 flex-1">
