@@ -145,6 +145,44 @@ export class CanvasManager {
     this.render();
   }
 
+  /**
+   * Dodaj kształt z ręcznie wprowadzonymi danymi (z modala)
+   */
+  addShapeManually(type: 'line' | 'rectangle' | 'circle', params: any): void {
+    let shape: Shape | null = null;
+
+    if (type === 'rectangle') {
+      shape = new Rectangle(
+        params.x,
+        params.y,
+        params.width,
+        params.height,
+        params.filled ?? false,
+        params.color,
+        params.strokeWidth
+      );
+    } else if (type === 'circle') {
+      shape = new Circle(
+        { x: params.centerX, y: params.centerY },
+        params.radius,
+        params.filled ?? false,
+        params.color,
+        params.strokeWidth
+      );
+    } else if (type === 'line') {
+      shape = new Line(
+        { x: params.x1, y: params.y1 },
+        { x: params.x2, y: params.y2 },
+        params.color,
+        params.strokeWidth
+      );
+    }
+
+    if (shape) {
+      this.addShape(shape);
+    }
+  }
+
   removeShape(id: string): void {
     this.shapes = this.shapes.filter(s => s.id !== id);
     this.saveState(); // Zapisz stan dla undo

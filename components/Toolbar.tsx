@@ -4,6 +4,7 @@
 interface ToolbarProps {
   selectedTool: string;
   onToolSelect: (tool: string) => void;
+  onShapeModalOpen?: (toolId: string) => void;
   onUndo?: () => void;
   onRedo?: () => void;
   onClear?: () => void;
@@ -11,12 +12,12 @@ interface ToolbarProps {
   onColorChange?: (color: string) => void;
 }
 
-export default function Toolbar({ selectedTool, onToolSelect, onUndo, onRedo, onClear, currentColor = '#000000', onColorChange }: ToolbarProps) {
+export default function Toolbar({ selectedTool, onToolSelect, onShapeModalOpen, onUndo, onRedo, onClear, currentColor = '#000000', onColorChange }: ToolbarProps) {
   const tools = [
     { id: 'select', icon: 'ri-cursor-line', tooltip: 'Select Tool (V)' },
-    { id: 'line', icon: 'ri-expand-diagonal-s-line', tooltip: 'Line Tool (L)' },
-    { id: 'rectangle', icon: 'ri-checkbox-blank-line', tooltip: 'Rectangle Tool (R)' },
-    { id: 'circle', icon: 'ri-checkbox-blank-circle-line', tooltip: 'Circle Tool (C)' },
+    { id: 'line', icon: 'ri-expand-diagonal-s-line', tooltip: 'Line Tool (L) | Shift+Click for manual input' },
+    { id: 'rectangle', icon: 'ri-checkbox-blank-line', tooltip: 'Rectangle Tool (R) | Shift+Click for manual input' },
+    { id: 'circle', icon: 'ri-checkbox-blank-circle-line', tooltip: 'Circle Tool (C) | Shift+Click for manual input' },
     { id: 'brush', icon: 'ri-brush-line', tooltip: 'Brush Tool (B)' },
     //{ id: 'eraser', icon: 'ri-eraser-line', tooltip: 'Eraser Tool (E)' },
     //{ id: 'eyedropper', icon: 'ri-drop-line', tooltip: 'Eyedropper Tool (I)' },
@@ -25,13 +26,24 @@ export default function Toolbar({ selectedTool, onToolSelect, onUndo, onRedo, on
     //{ id: 'zoom', icon: 'ri-zoom-in-line', tooltip: 'Zoom Tool (Z)' }
   ];
 
+  const handleToolClick = (toolId: string, event: React.MouseEvent) => {
+    // Check if Shift is pressed and it's a shape tool (not brush or select)
+    const isShapeTool = ['line', 'rectangle', 'circle'].includes(toolId);
+    
+    if (event.shiftKey && isShapeTool && onShapeModalOpen) {
+      onShapeModalOpen(toolId);
+    } else {
+      onToolSelect(toolId);
+    }
+  };
+
   return (
     <div className="w-12 bg-zinc-800 border-r border-zinc-700 flex flex-col">
       <div className="flex flex-col">
         {tools.map((tool, index) => (
           <div key={tool.id} className="relative group">
             <button
-              onClick={() => onToolSelect(tool.id)}
+              onClick={(e) => handleToolClick(tool.id, e)}
               className={`w-full h-12 flex items-center justify-center cursor-pointer transition-colors ${
                 selectedTool === tool.id 
                   ? 'bg-zinc-600 text-white' 

@@ -8,6 +8,7 @@ import Canvas from '@/components/Canvas';
 import LayerPanel from '@/components/LayerPanel';
 import PropertiesPanel from '@/components/PropertiesPanel';
 import MobileWarning from '@/components/MobileWarning';
+import ShapeInputModal, { ShapeInputData } from '@/components/ShapeInputModal';
 import { projectStorage, type Project } from '@/lib/projectStorage';
 import { CanvasManager } from '@/lib/CanvasManager';
 import { Shape } from '@/lib/shapes/Shape';
@@ -26,6 +27,8 @@ function ProjectContent() {
   const [selectedShape, setSelectedShape] = useState<Shape | null>(null);
   const canvasManagerRef = useRef<CanvasManager | null>(null);
   const canvasRefreshRef = useRef<(() => void) | null>(null);
+  const [isShapeModalOpen, setIsShapeModalOpen] = useState(false);
+  const [modalShapeType, setModalShapeType] = useState<'line' | 'rectangle' | 'circle' | null>(null);
 
   useEffect(() => {
     const projectId = searchParams.get('id');
@@ -116,6 +119,68 @@ function ProjectContent() {
       canvasRefreshRef.current();
       updateShapesList();
     }
+  };
+
+  const handleShapeModalOpen = (toolId: string) => {
+    if (['line', 'rectangle', 'circle'].includes(toolId)) {
+      setModalShapeType(toolId as 'line' | 'rectangle' | 'circle');
+      setIsShapeModalOpen(true);
+    }
+  };
+
+  const handleShapeModalClose = () => {
+    setIsShapeModalOpen(false);
+    setModalShapeType(null);
+  };
+
+  const handleShapeModalSubmit = (data: ShapeInputData) => {
+    if (!canvasManagerRef.current) return;
+
+    // Convert hex color to RGB
+    const hexToRgb = (hex: string) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+        a: 255
+      } : { r: 0, g: 0, b: 0, a: 255 };
+    };
+
+    const color = hexToRgb(currentColor);
+
+    if (modalShapeType === 'rectangle' && data.x !== undefined && data.y !== undefined && data.width !== undefined && data.height !== undefined) {
+      canvasManagerRef.current.addShapeManually('rectangle', {
+        x: data.x,
+        y: data.y,
+        width: data.width,
+        height: data.height,
+        filled: data.filled ?? false,
+        color,
+        strokeWidth
+      });
+    } else if (modalShapeType === 'circle' && data.centerX !== undefined && data.centerY !== undefined && data.radius !== undefined) {
+      canvasManagerRef.current.addShapeManually('circle', {
+        centerX: data.centerX,
+        centerY: data.centerY,
+        radius: data.radius,
+        filled: data.circleFilled ?? false,
+        color,
+        strokeWidth
+      });
+    } else if (modalShapeType === 'line' && data.x1 !== undefined && data.y1 !== undefined && data.x2 !== undefined && data.y2 !== undefined) {
+      canvasManagerRef.current.addShapeManually('line', {
+        x1: data.x1,
+        y1: data.y1,
+        x2: data.x2,
+        y2: data.y2,
+        color,
+        strokeWidth
+      });
+    }
+
+    canvasRefreshRef.current?.();
+    updateShapesList();
   };
 
   const handleExportPNG = () => {
@@ -313,6 +378,7 @@ function ProjectContent() {
           <Toolbar 
             selectedTool={selectedTool}
             onToolSelect={setSelectedTool}
+            onShapeModalOpen={handleShapeModalOpen}
             onUndo={handleUndo}
             onRedo={handleRedo}
             onClear={handleClear}
@@ -349,6 +415,16 @@ function ProjectContent() {
           </div>
         </div>
       </div>
+
+      {/* Shape Input Modal */}
+      <ShapeInputModal
+        isOpen={isShapeModalOpen}
+        shapeType={modalShapeType}
+        onClose={handleShapeModalClose}
+        onSubmit={handleShapeModalSubmit}
+        canvasWidth={currentProject?.width ?? 800}
+        canvasHeight={currentProject?.height ?? 600}
+      />
     </>
   );
 }
