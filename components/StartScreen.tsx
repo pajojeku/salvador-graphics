@@ -44,77 +44,268 @@ export default function StartScreen() {
     router.push(`/project?id=${project.id}`);
   };
 
-  const handleDeleteProject = (e: React.MouseEvent, projectId: string) => {
-    e.stopPropagation(); // Zatrzymaj propagację, żeby nie otworzyć projektu
+  const handleDeleteProject = async (e: React.MouseEvent, projectId: string) => {
+    e.stopPropagation();
     
     if (confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
-      projectStorage.delete(projectId);
+      await projectStorage.delete(projectId);
       setRecentProjects(projectStorage.getAll());
     }
   };
 
-  const handleOpenFile = () => {
-    // Utwórz ukryty input file
+  const handleOpenFile = async () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.slv';
+    input.accept = '.slv,.ppm,.jpg,.jpeg';
     
     input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
       const file = target.files?.[0];
-      
       if (!file) return;
-      
-      try {
-        // Wczytaj zawartość pliku
-        const text = await file.text();
-        const projectData = JSON.parse(text);
-        
-        // Walidacja podstawowych pól
-        if (!projectData.name || !projectData.width || !projectData.height || !projectData.canvasData) {
-          alert('Invalid project file format');
-          return;
+
+      const extension = file.name.split('.').pop()?.toLowerCase();
+
+      if (extension === 'ppm') {
+        try {
+          const { PPMLoader } = await import('@/lib/ppmLoader');
+          const { imageDB } = await import('@/lib/imageDB');
+          
+          const ppmData = await PPMLoader.loadFromFile(file);
+          
+          const imageId = await imageDB.saveImage(
+            file.name,
+            ppmData.width,
+            ppmData.height,
+            ppmData.maxVal,
+            ppmData.format,
+            ppmData.pixels
+          );
+
+          const canvas = document.createElement('canvas');
+          const maxWidth = 400;
+          const maxHeight = 300;
+          
+          const needsResize = ppmData.width > maxWidth || ppmData.height > maxHeight;
+          
+          if (needsResize) {
+            const aspectRatio = ppmData.width / ppmData.height;
+            
+            let thumbWidth = maxWidth;
+            let thumbHeight = maxWidth / aspectRatio;
+            
+            if (thumbHeight > maxHeight) {
+              thumbHeight = maxHeight;
+              thumbWidth = maxHeight * aspectRatio;
+            }
+            
+            canvas.width = thumbWidth;
+            canvas.height = thumbHeight;
+            const ctx = canvas.getContext('2d');
+            
+            if (ctx) {
+              const tempCanvas = document.createElement('canvas');
+              tempCanvas.width = ppmData.width;
+              tempCanvas.height = ppmData.height;
+              const tempCtx = tempCanvas.getContext('2d');
+              
+              if (tempCtx) {
+                const imageData = tempCtx.createImageData(ppmData.width, ppmData.height);
+                imageData.data.set(ppmData.pixels);
+                tempCtx.putImageData(imageData, 0, 0);
+                
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(tempCanvas, 0, 0, thumbWidth, thumbHeight);
+              }
+            }
+          } else {
+            canvas.width = ppmData.width;
+            canvas.height = ppmData.height;
+            const ctx = canvas.getContext('2d');
+            
+            if (ctx) {
+              const imageData = ctx.createImageData(ppmData.width, ppmData.height);
+              imageData.data.set(ppmData.pixels);
+              ctx.putImageData(imageData, 0, 0);
+            }
+          }
+          
+          const thumbnail = needsResize ? canvas.toDataURL('image/jpeg', 0.6) : canvas.toDataURL('image/png');
+
+          const newProject = projectStorage.save({
+            name: file.name.replace('.ppm', ''),
+            width: ppmData.width,
+            height: ppmData.height,
+            thumbnail: thumbnail,
+          });
+
+          const canvasData = {
+            width: ppmData.width,
+            height: ppmData.height,
+            shapes: [{
+              id: `img_${Date.now()}`,
+              type: 'image',
+              imageId: imageId,
+              x: 0,
+              y: 0,
+              width: ppmData.width,
+              height: ppmData.height,
+              selected: false,
+              visible: true,
+            }],
+          };
+
+          projectStorage.saveCanvasData(newProject.id, JSON.stringify(canvasData));
+          router.push(`/project?id=${newProject.id}`);
+        } catch (error) {
+          console.error('Error loading PPM:', error);
+          alert('Failed to load PPM file: ' + (error as Error).message);
         }
-        
-        // Sprawdź czy projekt o takim ID już istnieje
-        let projectId = projectData.id || Date.now().toString();
-        const existingProject = projectStorage.getById(projectId);
-        
-        if (existingProject) {
-          // Wygeneruj nowe unikalne ID
-          projectId = Date.now().toString();
+      } else if (extension === 'jpg' || extension === 'jpeg') {
+        try {
+          const { imageDB } = await import('@/lib/imageDB');
+          
+          // Load image using browser's native image loader
+          const img = new Image();
+          const imageUrl = URL.createObjectURL(file);
+          
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => reject(new Error('Failed to load image'));
+            img.src = imageUrl;
+          });
+
+          // Convert to pixel data
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            throw new Error('Failed to get canvas context');
+          }
+
+          ctx.drawImage(img, 0, 0);
+          const imageData = ctx.getImageData(0, 0, img.width, img.height);
+          const pixels = new Uint8ClampedArray(imageData.data);
+
+          // Save to imageDB (using P6 format and maxVal 255 for JPG)
+          const imageId = await imageDB.saveImage(
+            file.name,
+            img.width,
+            img.height,
+            255, // maxVal for JPG
+            'P6', // format
+            pixels
+          );
+
+          // Create thumbnail
+          const maxWidth = 400;
+          const maxHeight = 300;
+          const needsResize = img.width > maxWidth || img.height > maxHeight;
+          
+          let thumbnail: string;
+          if (needsResize) {
+            const aspectRatio = img.width / img.height;
+            
+            let thumbWidth = maxWidth;
+            let thumbHeight = maxWidth / aspectRatio;
+            
+            if (thumbHeight > maxHeight) {
+              thumbHeight = maxHeight;
+              thumbWidth = maxHeight * aspectRatio;
+            }
+            
+            const thumbCanvas = document.createElement('canvas');
+            thumbCanvas.width = thumbWidth;
+            thumbCanvas.height = thumbHeight;
+            const thumbCtx = thumbCanvas.getContext('2d');
+            
+            if (thumbCtx) {
+              thumbCtx.imageSmoothingEnabled = false;
+              thumbCtx.drawImage(img, 0, 0, thumbWidth, thumbHeight);
+            }
+            thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.6);
+          } else {
+            thumbnail = canvas.toDataURL('image/png');
+          }
+
+          // Clean up
+          URL.revokeObjectURL(imageUrl);
+
+          // Create project
+          const newProject = projectStorage.save({
+            name: file.name.replace(/\.(jpg|jpeg)$/i, ''),
+            width: img.width,
+            height: img.height,
+            thumbnail: thumbnail,
+          });
+
+          const canvasData = {
+            width: img.width,
+            height: img.height,
+            shapes: [{
+              id: `img_${Date.now()}`,
+              type: 'image',
+              imageId: imageId,
+              x: 0,
+              y: 0,
+              width: img.width,
+              height: img.height,
+              selected: false,
+              visible: true,
+            }],
+          };
+
+          projectStorage.saveCanvasData(newProject.id, JSON.stringify(canvasData));
+          router.push(`/project?id=${newProject.id}`);
+        } catch (error) {
+          console.error('Error loading JPG:', error);
+          alert('Failed to load JPG file: ' + (error as Error).message);
         }
-        
-        // Utwórz nowy projekt w localStorage
-        const newProject: Project = {
-          id: projectId,
-          name: projectData.name,
-          width: projectData.width,
-          height: projectData.height,
-          created: projectData.created || new Date().toISOString(),
-          lastModified: new Date().toISOString(),
-          thumbnail: projectData.thumbnail,
-        };
-        
-        // Zapisz projekt
-        const projects = projectStorage.getAll();
-        projects.unshift(newProject);
-        localStorage.setItem('salvador_projects', JSON.stringify(projects));
-        
-        // Zapisz dane canvas
-        const canvasDataString = JSON.stringify(projectData.canvasData);
-        projectStorage.saveCanvasData(projectId, canvasDataString);
-        
-        // Otwórz projekt
-        router.push(`/project?id=${projectId}`);
-        
-      } catch (error) {
-        console.error('Error loading project:', error);
-        alert('Failed to load project file. Please make sure it\'s a valid .slv file.');
+      } else if (extension === 'slv') {
+        try {
+          const text = await file.text();
+          const projectData = JSON.parse(text);
+          
+          if (!projectData.name || !projectData.width || !projectData.height || !projectData.canvasData) {
+            alert('Invalid project file format');
+            return;
+          }
+          
+          let projectId = projectData.id || Date.now().toString();
+          const existingProject = projectStorage.getById(projectId);
+          
+          if (existingProject) {
+            projectId = Date.now().toString();
+          }
+          
+          const newProject: Project = {
+            id: projectId,
+            name: projectData.name,
+            width: projectData.width,
+            height: projectData.height,
+            created: projectData.created || new Date().toISOString(),
+            lastModified: new Date().toISOString(),
+            thumbnail: projectData.thumbnail,
+          };
+          
+          const projects = projectStorage.getAll();
+          projects.unshift(newProject);
+          localStorage.setItem('salvador_projects', JSON.stringify(projects));
+          
+          const canvasDataString = JSON.stringify(projectData.canvasData);
+          projectStorage.saveCanvasData(projectId, canvasDataString);
+          
+          router.push(`/project?id=${projectId}`);
+        } catch (error) {
+          console.error('Error loading project:', error);
+          alert('Failed to load project file. Please make sure it\'s a valid .slv file.');
+        }
+      } else {
+        alert('Unsupported file format. Please select a .slv, .ppm, or .jpg/.jpeg file.');
       }
     };
     
-    // Kliknij input aby otworzyć dialog wyboru pliku
     input.click();
   };
 
@@ -171,7 +362,7 @@ export default function StartScreen() {
             </div>
             <div>
               <div className="font-semibold">Open File</div>
-              <div className="text-xs text-zinc-400">Browse projects</div>
+              <div className="text-xs text-zinc-400">Project or image</div>
             </div>
           </button>
         </div>

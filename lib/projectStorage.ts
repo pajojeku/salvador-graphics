@@ -14,13 +14,11 @@ const CANVAS_DATA_KEY = 'salvador_canvas_data_'; // Prefix dla danych canvas
 
 // Generate a thumbnail for a project
 export const generateThumbnail = (width: number, height: number): string => {
-  // Create a canvas element
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   
-  // Set thumbnail dimensions (aspect ratio preserved)
-  const maxWidth = 400;
-  const maxHeight = 300;
+  const maxWidth = 200;
+  const maxHeight = 150;
   const aspectRatio = width / height;
   
   let thumbWidth = maxWidth;
@@ -36,7 +34,6 @@ export const generateThumbnail = (width: number, height: number): string => {
   
   if (!ctx) return '';
   
-  // Create a gradient background
   const gradient = ctx.createRadialGradient(thumbWidth / 2, thumbHeight / 2, 0, thumbWidth / 2, thumbHeight / 2, thumbWidth);
   gradient.addColorStop(0, '#6366f1');
   gradient.addColorStop(1, '#3b82f6');
@@ -44,7 +41,6 @@ export const generateThumbnail = (width: number, height: number): string => {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, thumbWidth, thumbHeight);
   
-  // Add grid pattern
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
   ctx.lineWidth = 1;
   
@@ -63,16 +59,13 @@ export const generateThumbnail = (width: number, height: number): string => {
     ctx.stroke();
   }
   
-  
-  // Add dimension text
   ctx.fillStyle = 'rgba(255, 255, 255, 1)';
-  ctx.font = 'bold 20px sans-serif';
+  ctx.font = 'bold 14px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(`${width} × ${height}`, thumbWidth / 2, thumbHeight / 2);
   
-  // Convert to base64
-  return canvas.toDataURL('image/png');
+  return canvas.toDataURL('image/jpeg', 0.8);
 };
 
 export const projectStorage = {
@@ -128,16 +121,60 @@ export const projectStorage = {
     return projects[index];
   },
 
-  // Delete a project
-  delete: (id: string): boolean => {
+  delete: async (id: string): Promise<boolean> => {
     const projects = projectStorage.getAll();
     const filtered = projects.filter(p => p.id !== id);
     
     if (filtered.length === projects.length) return false;
     
-    // Usuń również dane canvas
-    localStorage.removeItem(CANVAS_DATA_KEY + id);
+    const canvasDataStr = localStorage.getItem(CANVAS_DATA_KEY + id);
+    if (canvasDataStr) {
+      try {
+        const canvasData = JSON.parse(canvasDataStr);
+        if (canvasData.shapes) {
+          const { imageDB } = await import('./imageDB');
+          const imageIdsToCheck: string[] = [];
+          
+          for (const shape of canvasData.shapes) {
+            if (shape.type === 'image' && shape.imageId) {
+              imageIdsToCheck.push(shape.imageId);
+            }
+          }
+          
+          for (const imageId of imageIdsToCheck) {
+            let isUsedElsewhere = false;
+            
+            for (const project of filtered) {
+              const otherCanvasData = localStorage.getItem(CANVAS_DATA_KEY + project.id);
+              if (otherCanvasData) {
+                try {
+                  const otherData = JSON.parse(otherCanvasData);
+                  if (otherData.shapes) {
+                    for (const otherShape of otherData.shapes) {
+                      if (otherShape.type === 'image' && otherShape.imageId === imageId) {
+                        isUsedElsewhere = true;
+                        break;
+                      }
+                    }
+                  }
+                } catch (e) {
+                  console.error('Error checking project:', e);
+                }
+              }
+              if (isUsedElsewhere) break;
+            }
+            
+            if (!isUsedElsewhere) {
+              await imageDB.deleteImage(imageId);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Error cleaning up images:', e);
+      }
+    }
     
+    localStorage.removeItem(CANVAS_DATA_KEY + id);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
     return true;
   },

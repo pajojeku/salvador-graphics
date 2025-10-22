@@ -11,7 +11,7 @@ export interface Color {
   a: number;
 }
 
-export type ShapeType = 'line' | 'rectangle' | 'circle' | 'brush';
+export type ShapeType = 'line' | 'rectangle' | 'circle' | 'brush' | 'image';
 
 export interface ShapeData {
   id: string;

@@ -6,11 +6,12 @@ import Link from 'next/link';
 interface HeaderProps {
   projectName?: string;
   onExportPNG?: () => void;
+  onExportJPG?: () => void;
   onSaveProject?: () => void;
   onLoadProject?: () => void;
 }
 
-export default function Header({ projectName, onExportPNG, onSaveProject, onLoadProject }: HeaderProps) {
+export default function Header({ projectName, onExportPNG, onExportJPG, onSaveProject, onLoadProject }: HeaderProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
   const menuItems = [
@@ -22,6 +23,11 @@ export default function Header({ projectName, onExportPNG, onSaveProject, onLoad
   const handleExportPNG = () => {
     setActiveMenu(null);
     onExportPNG?.();
+  };
+
+  const handleExportJPG = () => {
+    setActiveMenu(null);
+    onExportJPG?.();
   };
 
   const handleSaveProject = () => {
@@ -87,6 +93,13 @@ export default function Header({ projectName, onExportPNG, onSaveProject, onLoad
                       >
                         <i className="ri-download-line"></i>
                         <span>Export to PNG</span>
+                      </button>
+                      <button
+                        onClick={handleExportJPG}
+                        className="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700 flex items-center space-x-2 cursor-pointer"
+                      >
+                        <i className="ri-image-line"></i>
+                        <span>Export to JPG</span>
                       </button>
                     </div>
                   )}

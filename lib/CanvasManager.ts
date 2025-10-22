@@ -1,4 +1,4 @@
-import { Shape, Line, Rectangle, Circle, Brush, LineData, RectangleData, CircleData } from './shapes/index'
+import { Shape, Line, Rectangle, Circle, Brush, ImageShape, LineData, RectangleData, CircleData } from './shapes/index'
 
 export interface CanvasState {
   shapes: Shape[];
@@ -297,17 +297,17 @@ export class CanvasManager {
   /**
    * Wczytaj stan canvas z JSON
    */
-  deserialize(jsonString: string): void {
+  async deserialize(jsonString: string): Promise<void> {
     const data = JSON.parse(jsonString);
     
-    // Sprawdź czy wymiary się zgadzają
-    if (data.width !== this.width || data.height !== this.height) {
+    if (data.width && data.height && (data.width !== this.width || data.height !== this.height)) {
       throw new Error(`Canvas dimensions mismatch. Expected ${this.width}x${this.height}, got ${data.width}x${data.height}`);
     }
 
-    // Wczytaj kształty
     this.shapes = [];
-    data.shapes.forEach((shapeData: any) => {
+    const { imageDB } = await import('./imageDB');
+
+    for (const shapeData of data.shapes) {
       let shape: Shape | null = null;
       
       switch (shapeData.type) {
@@ -323,28 +323,70 @@ export class CanvasManager {
         case 'brush':
           shape = Brush.deserialize(shapeData);
           break;
+        case 'image':
+          console.log('Deserializing image shape:', shapeData);
+          shape = ImageShape.deserialize(shapeData);
+          if (shape instanceof ImageShape) {
+            console.log('Loading image from DB:', shapeData.imageId);
+            const imageRecord = await imageDB.getImage(shapeData.imageId);
+            console.log('Image record:', imageRecord);
+            if (imageRecord) {
+              const pixels = new Uint8ClampedArray(imageRecord.data);
+              console.log('Setting pixels, length:', pixels.length);
+              shape.setCachedPixels(pixels);
+            } else {
+              console.error('Image not found in DB:', shapeData.imageId);
+            }
+          }
+          break;
       }
       
       if (shape) {
         this.shapes.push(shape);
       }
-    });
+    }
 
     this.render();
   }
 
-  /**
-   * Eksportuj canvas jako PNG (base64)
-   */
   exportAsPNG(): string {
     return this.canvas.toDataURL('image/png');
   }
 
-  /**
-   * Eksportuj canvas jako JPEG (base64)
-   */
   exportAsJPEG(quality: number = 0.92): string {
     return this.canvas.toDataURL('image/jpeg', quality);
+  }
+
+  exportThumbnail(): string {
+    const maxWidth = 200;
+    const maxHeight = 150;
+    const needsResize = this.width > maxWidth || this.height > maxHeight;
+    
+    if (!needsResize) {
+      return this.canvas.toDataURL('image/png');
+    }
+    
+    const thumbCanvas = document.createElement('canvas');
+    const aspectRatio = this.width / this.height;
+    
+    let thumbWidth = maxWidth;
+    let thumbHeight = maxWidth / aspectRatio;
+    
+    if (thumbHeight > maxHeight) {
+      thumbHeight = maxHeight;
+      thumbWidth = maxHeight * aspectRatio;
+    }
+    
+    thumbCanvas.width = thumbWidth;
+    thumbCanvas.height = thumbHeight;
+    
+    const ctx = thumbCanvas.getContext('2d');
+    if (!ctx) return '';
+    
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this.canvas, 0, 0, thumbWidth, thumbHeight);
+    
+    return thumbCanvas.toDataURL('image/jpeg', 0.6);
   }
 
   // ===== UNDO / REDO =====

@@ -35,6 +35,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
   const [resizeStartPoint, setResizeStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentBrush, setCurrentBrush] = useState<Brush | null>(null);
   const [isMouseOutside, setIsMouseOutside] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const updateTrigger = useRef(0);
   const lastRenderTime = useRef<number>(0);
   const renderAnimationFrame = useRef<number | null>(null);
@@ -212,36 +213,47 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     return null;
   };
 
-  // Inicjalizacja CanvasManager
   useEffect(() => {
     if (!project || !canvasRef.current) return;
 
     const manager = new CanvasManager(project.width, project.height);
     setCanvasManager(manager);
     
-    // Expose manager to parent via ref
     if (canvasManagerRef) {
       canvasManagerRef.current = manager;
     }
 
-    // Expose refresh function to parent
     if (canvasRefreshRef) {
       canvasRefreshRef.current = () => refreshCanvas(manager);
     }
 
-    // Wczytaj zapisany stan z localStorage
     const savedData = projectStorage.getCanvasData(project.id);
     if (savedData) {
+      console.log('Loading canvas data:', savedData);
+      setIsLoading(true);
       try {
-        manager.deserialize(savedData);
+        manager.deserialize(savedData).then(() => {
+          console.log('Deserialized shapes:', manager.getAllShapes());
+          manager.render();
+          refreshCanvas(manager);
+          setIsLoading(false);
+        }).catch((e) => {
+          console.error('Failed to deserialize:', e);
+          manager.render();
+          refreshCanvas(manager);
+          setIsLoading(false);
+        });
       } catch (e) {
         console.error('Failed to load canvas data:', e);
+        manager.render();
+        refreshCanvas(manager);
+        setIsLoading(false);
       }
+    } else {
+      console.log('No saved data for project');
+      manager.render();
+      refreshCanvas(manager);
     }
-
-    // Inicjalizuj canvas
-    manager.render();
-    refreshCanvas(manager);
 
     return () => {
       if (canvasManagerRef) {
@@ -267,8 +279,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         const canvasData = canvasManager.serialize();
         projectStorage.saveCanvasData(project.id, canvasData);
         
-        // Zapisz również thumbnail
-        const thumbnailData = canvasManager.exportAsPNG();
+        const thumbnailData = canvasManager.exportThumbnail();
         projectStorage.saveCanvasThumbnail(project.id, thumbnailData);
       } catch (e) {
         console.error('Failed to save canvas data:', e);
@@ -781,6 +792,19 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
 
   return (
     <div ref={containerRef} className="flex-1 bg-zinc-800 relative overflow-hidden">
+      {isLoading && (
+        <div className="absolute inset-0 bg-zinc-900/95 flex items-center justify-center z-50">
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-2 mb-4">
+              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+            <div className="text-zinc-400">Loading canvas...</div>
+          </div>
+        </div>
+      )}
+      
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div 
           className="bg-white border border-zinc-600 shadow-2xl relative"

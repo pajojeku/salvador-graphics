@@ -306,15 +306,16 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-zinc-700 text-white rounded hover:bg-zinc-600 transition-colors"
+              className="px-4 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-700 rounded transition-colors"
             >
               Anuluj
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
+              className="px-4 py-2 text-sm bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded font-medium transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
             >
-              Dodaj
+              <i className="ri-add-line"></i>
+              <span>Dodaj</span>
             </button>
           </div>
         </form>

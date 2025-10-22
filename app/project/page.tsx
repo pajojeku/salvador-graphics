@@ -9,6 +9,7 @@ import LayerPanel from '@/components/LayerPanel';
 import PropertiesPanel from '@/components/PropertiesPanel';
 import MobileWarning from '@/components/MobileWarning';
 import ShapeInputModal, { ShapeInputData } from '@/components/ShapeInputModal';
+import ExportJPGModal from '@/components/ExportJPGModal';
 import { projectStorage, type Project } from '@/lib/projectStorage';
 import { CanvasManager } from '@/lib/CanvasManager';
 import { Shape } from '@/lib/shapes/Shape';
@@ -29,6 +30,7 @@ function ProjectContent() {
   const canvasRefreshRef = useRef<(() => void) | null>(null);
   const [isShapeModalOpen, setIsShapeModalOpen] = useState(false);
   const [modalShapeType, setModalShapeType] = useState<'line' | 'rectangle' | 'circle' | null>(null);
+  const [isExportJPGModalOpen, setIsExportJPGModalOpen] = useState(false);
 
   useEffect(() => {
     const projectId = searchParams.get('id');
@@ -191,6 +193,19 @@ function ProjectContent() {
       // Utwórz link do pobrania
       const link = document.createElement('a');
       link.download = `${currentProject.name}.png`;
+      link.href = dataUrl;
+      link.click();
+    }
+  };
+
+  const handleExportJPG = (quality: number) => {
+    if (canvasManagerRef.current && currentProject) {
+      // Pobierz canvas jako JPG z wybraną jakością
+      const dataUrl = canvasManagerRef.current.exportAsJPEG(quality);
+      
+      // Utwórz link do pobrania
+      const link = document.createElement('a');
+      link.download = `${currentProject.name}.jpg`;
       link.href = dataUrl;
       link.click();
     }
@@ -370,6 +385,7 @@ function ProjectContent() {
         <Header 
           projectName={currentProject?.name}
           onExportPNG={handleExportPNG}
+          onExportJPG={() => setIsExportJPGModalOpen(true)}
           onSaveProject={handleSaveProject}
           onLoadProject={handleLoadProject}
         />
@@ -424,6 +440,14 @@ function ProjectContent() {
         onSubmit={handleShapeModalSubmit}
         canvasWidth={currentProject?.width ?? 800}
         canvasHeight={currentProject?.height ?? 600}
+      />
+
+      {/* Export JPG Modal */}
+      <ExportJPGModal
+        isOpen={isExportJPGModalOpen}
+        onClose={() => setIsExportJPGModalOpen(false)}
+        onExport={handleExportJPG}
+        projectName={currentProject?.name}
       />
     </>
   );
