@@ -1,6 +1,9 @@
 
 'use client';
 
+import { useState } from 'react';
+import ColorPickerModal from './ColorPickerModal';
+
 interface ToolbarProps {
   selectedTool: string;
   onToolSelect: (tool: string) => void;
@@ -13,6 +16,7 @@ interface ToolbarProps {
 }
 
 export default function Toolbar({ selectedTool, onToolSelect, onShapeModalOpen, onUndo, onRedo, onClear, currentColor = '#000000', onColorChange }: ToolbarProps) {
+  const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const tools = [
     { id: 'select', icon: 'ri-cursor-line', tooltip: 'Select Tool (V)' },
     { id: 'line', icon: 'ri-expand-diagonal-s-line', tooltip: 'Line Tool (L) | Shift+Click for manual input' },
@@ -91,11 +95,10 @@ export default function Toolbar({ selectedTool, onToolSelect, onShapeModalOpen, 
       {/* Color Picker */}
       <div className="mt-auto px-2 mb-4">
         <div className="relative group">
-          <input
-            type="color"
-            value={currentColor}
-            onChange={(e) => onColorChange?.(e.target.value)}
-            className="w-8 h-8 border border-zinc-600 rounded cursor-pointer"
+          <button
+            onClick={() => setIsColorPickerOpen(true)}
+            className="w-8 h-8 border-2 border-zinc-600 rounded cursor-pointer hover:border-indigo-500 transition-colors"
+            style={{ backgroundColor: currentColor }}
             title="Pick Color"
           />
           <div className="absolute left-full ml-2 bottom-0 bg-zinc-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
@@ -103,6 +106,14 @@ export default function Toolbar({ selectedTool, onToolSelect, onShapeModalOpen, 
           </div>
         </div>
       </div>
+
+      {/* Color Picker Modal */}
+      <ColorPickerModal
+        isOpen={isColorPickerOpen}
+        onClose={() => setIsColorPickerOpen(false)}
+        initialColor={currentColor}
+        onColorSelect={(color) => onColorChange?.(color)}
+      />
     </div>
   );
 }

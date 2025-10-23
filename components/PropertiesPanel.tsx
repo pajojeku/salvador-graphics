@@ -1,11 +1,13 @@
 
 'use client';
 
+import { useState } from 'react';
 import { Shape } from '@/lib/shapes';
 import { Circle } from '@/lib/shapes/Circle';
 import { Rectangle } from '@/lib/shapes/Rectangle';
 import { Line } from '@/lib/shapes/Line';
 import { Brush } from '@/lib/shapes/Brush';
+import ColorPickerModal from './ColorPickerModal';
 
 interface PropertiesPanelProps {
   strokeWidth?: number;
@@ -20,6 +22,8 @@ export default function PropertiesPanel({
   selectedShape,
   onShapeUpdate 
 }: PropertiesPanelProps) {
+  const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+  
   return (
     <div className="bg-zinc-800">
       {/* Properties Header */}
@@ -84,17 +88,10 @@ export default function PropertiesPanel({
             <div className="space-y-2">
               <label className="text-xs text-zinc-400 block">Color</label>
               <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={`#${selectedShape.color.r.toString(16).padStart(2, '0')}${selectedShape.color.g.toString(16).padStart(2, '0')}${selectedShape.color.b.toString(16).padStart(2, '0')}`}
-                  onInput={(e) => {
-                    const hex = (e.target as HTMLInputElement).value;
-                    selectedShape.color.r = parseInt(hex.slice(1, 3), 16);
-                    selectedShape.color.g = parseInt(hex.slice(3, 5), 16);
-                    selectedShape.color.b = parseInt(hex.slice(5, 7), 16);
-                    onShapeUpdate?.();
-                  }}
-                  className="w-12 h-8 bg-zinc-700 border border-zinc-600 rounded cursor-pointer"
+                <button
+                  onClick={() => setIsColorPickerOpen(true)}
+                  className="w-12 h-8 border-2 border-zinc-600 rounded cursor-pointer hover:border-indigo-500 transition-colors"
+                  style={{ backgroundColor: `#${selectedShape.color.r.toString(16).padStart(2, '0')}${selectedShape.color.g.toString(16).padStart(2, '0')}${selectedShape.color.b.toString(16).padStart(2, '0')}` }}
                 />
                 <span className="text-xs text-zinc-400">
                   RGB({selectedShape.color.r}, {selectedShape.color.g}, {selectedShape.color.b})
@@ -480,6 +477,21 @@ export default function PropertiesPanel({
           </div>
         )}
       </div>
+
+      {/* Color Picker Modal */}
+      {selectedShape && (
+        <ColorPickerModal
+          isOpen={isColorPickerOpen}
+          onClose={() => setIsColorPickerOpen(false)}
+          initialColor={`#${selectedShape.color.r.toString(16).padStart(2, '0')}${selectedShape.color.g.toString(16).padStart(2, '0')}${selectedShape.color.b.toString(16).padStart(2, '0')}`}
+          onColorSelect={(hex) => {
+            selectedShape.color.r = parseInt(hex.slice(1, 3), 16);
+            selectedShape.color.g = parseInt(hex.slice(3, 5), 16);
+            selectedShape.color.b = parseInt(hex.slice(5, 7), 16);
+            onShapeUpdate?.();
+          }}
+        />
+      )}
     </div>
   );
 }
