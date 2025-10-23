@@ -38,6 +38,8 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
   const [currentBrush, setCurrentBrush] = useState<Brush | null>(null);
   const [isMouseOutside, setIsMouseOutside] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
+  const [pixelColor, setPixelColor] = useState<{ r: number; g: number; b: number; a: number } | null>(null);
   const updateTrigger = useRef(0);
   const lastRenderTime = useRef<number>(0);
   const renderAnimationFrame = useRef<number | null>(null);
@@ -550,6 +552,21 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
 
+    // Zapisz pozycję myszy i pobierz kolor piksela
+    const pixelX = Math.floor(x);
+    const pixelY = Math.floor(y);
+    
+    if (pixelX >= 0 && pixelX < project!.width && pixelY >= 0 && pixelY < project!.height) {
+      setMousePosition({ x: pixelX, y: pixelY });
+      
+      // Pobierz kolor piksela
+      const color = canvasManager.getPixel(pixelX, pixelY);
+      setPixelColor(color);
+    } else {
+      setMousePosition(null);
+      setPixelColor(null);
+    }
+
     // Zmień kursor jeśli jesteśmy nad handle'm w trybie select
     if (currentTool === 'select' && selectedShape && !isResizing && !isDragging && canvasRef.current) {
       const handle = findHandleAtPoint(x, y, selectedShape.shape);
@@ -898,6 +915,10 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={(e) => {
+              // Wyczyść informacje o pozycji myszy i kolorze piksela
+              setMousePosition(null);
+              setPixelColor(null);
+              
               // Oznacz, że mysz wyszła poza canvas
               if (isDrawing && currentTool === 'brush') {
                 setIsMouseOutside(true);
@@ -1024,6 +1045,30 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       {/* Info panel */}
       <div className="absolute bottom-4 left-4 bg-zinc-900 bg-opacity-90 text-white px-3 py-2 rounded text-xs space-y-1">
         <div>Size: {project.width} × {project.height} px</div>
+        
+        {/* Pixel info */}
+        {mousePosition && pixelColor && (
+          <div className="border-t border-zinc-700 pt-1 mt-1 space-y-1">
+            <div className="flex items-center space-x-2">
+              <span className="text-zinc-400">Pos:</span>
+              <span>X: {mousePosition.x}, Y: {mousePosition.y}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div 
+                className="w-4 h-4 border border-zinc-600 rounded"
+                style={{ 
+                  backgroundColor: `rgb(${pixelColor.r}, ${pixelColor.g}, ${pixelColor.b})` 
+                }}
+              />
+              <span className="text-zinc-400">RGB:</span>
+              <span>
+                R:{pixelColor.r} G:{pixelColor.g} B:{pixelColor.b}
+                {pixelColor.a < 255 && ` A:${pixelColor.a}`}
+              </span>
+            </div>
+          </div>
+        )}
+        
         {selectedShape && (
           <div className="border-t border-zinc-700 pt-1 mt-1">
             <span>Tool: {selectedShape.shape.type.charAt(0).toUpperCase() + selectedShape.shape.type.slice(1)}</span>
