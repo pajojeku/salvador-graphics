@@ -24,12 +24,14 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [scale, setScale] = useState(1);
+  const [autoScale, setAutoScale] = useState(1); // Przechowuje domyślną skalę
   const [canvasManager, setCanvasManager] = useState<CanvasManager | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [, forceUpdate] = useState({});
   const [selectedShape, setSelectedShape] = useState<{ shape: any; offsetX: number; offsetY: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [dragPreviewPosition, setDragPreviewPosition] = useState<{ x: number; y: number } | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [resizeStartPoint, setResizeStartPoint] = useState<{ x: number; y: number } | null>(null);
@@ -315,6 +317,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       // Dla małych canvasów pozwalamy na powiększenie, dla dużych na zmniejszenie
       const newScale = Math.min(scaleByWidth, scaleByHeight);
       
+      setAutoScale(newScale);
       setScale(newScale);
     };
 
@@ -323,6 +326,29 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     
     return () => window.removeEventListener('resize', updateScale);
   }, [project]);
+
+  // Obsługa skrótów klawiszowych Ctrl+ i Ctrl-
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === '=' || e.key === '+') {
+          e.preventDefault();
+          setScale(prev => Math.min(prev + 0.1, 5)); // Max 500%
+        } else if (e.key === '-' || e.key === '_') {
+          e.preventDefault();
+          setScale(prev => Math.max(prev - 0.1, 0.1)); // Min 10%
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Reset zoom do domyślnego
+  const resetZoom = () => {
+    setScale(autoScale);
+  };
 
   // Globalny mouseup handler - obsługuje kliknięcia poza canvasem
   useEffect(() => {
@@ -439,6 +465,10 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
           const line = shape as Line;
           shapeX = line.start.x;
           shapeY = line.start.y;
+        } else if (shape.type === 'image') {
+          const img = shape as any;
+          shapeX = img.x;
+          shapeY = img.y;
         }
         
         setSelectedShape({
@@ -447,6 +477,12 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
           offsetY: y - shapeY
         });
         setIsDragging(true);
+        
+        // Dla obrazów ustaw początkową pozycję preview na aktualną pozycję obrazu
+        if (shape.type === 'image') {
+          setDragPreviewPosition({ x: shapeX, y: shapeY });
+        }
+        
         canvasManager.render();
         refreshCanvas();
       } else {
@@ -583,11 +619,18 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     if (isDragging && selectedShape && currentTool === 'select') {
       const shape = selectedShape.shape;
       
-      // Zaokrąglij współrzędne do pełnych pikseli aby zmniejszyć liczbę renderów
+      // Tylko dla obrazów - pokazuj preview zamiast bezpośredniego przesuwania
+      if (shape.type === 'image') {
+        const newX = Math.round(x - selectedShape.offsetX);
+        const newY = Math.round(y - selectedShape.offsetY);
+        setDragPreviewPosition({ x: newX, y: newY });
+        return;
+      }
+      
+      // Dla innych kształtów - natychmiastowe przesuwanie
       const newX = Math.round(x - selectedShape.offsetX);
       const newY = Math.round(y - selectedShape.offsetY);
 
-      // Oblicz aktualną pozycję w zależności od typu kształtu
       let currentX = 0;
       let currentY = 0;
       
@@ -614,7 +657,6 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       const dx = newX - currentX;
       const dy = newY - currentY;
 
-      // Przesuń tylko jeśli jest rzeczywista zmiana (nie renderuj dla submikselowych ruchów)
       if (dx !== 0 || dy !== 0) {
         shape.move(dx, dy);
         throttledRender(canvasManager);
@@ -706,7 +748,26 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       return;
     }
 
-    // Koniec przesuwania
+    // Koniec przesuwania - faktycznie przesuń obraz (tylko dla image type)
+    if (isDragging && selectedShape && dragPreviewPosition && selectedShape.shape.type === 'image') {
+      const shape = selectedShape.shape;
+      const img = shape as any;
+      const currentX = Math.round(img.x);
+      const currentY = Math.round(img.y);
+      
+      // Oblicz przesunięcie i faktycznie przesuń obraz
+      const dx = dragPreviewPosition.x - currentX;
+      const dy = dragPreviewPosition.y - currentY;
+      
+      if (dx !== 0 || dy !== 0) {
+        shape.move(dx, dy);
+        canvasManager.render();
+        refreshCanvas();
+      }
+      
+      setDragPreviewPosition(null);
+    }
+    
     if (isDragging) {
       setIsDragging(false);
       return;
@@ -805,24 +866,33 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         </div>
       )}
       
-      <div className="absolute inset-0 flex items-center justify-center p-4">
+      <div className="absolute inset-0 overflow-auto">
         <div 
-          className="bg-white border border-zinc-600 shadow-2xl relative"
+          className="min-h-full min-w-full flex items-center justify-center p-4"
           style={{
-            width: `${project.width * scale}px`,
-            height: `${project.height * scale}px`,
+            minWidth: `${project.width * scale + 32}px`,
+            minHeight: `${project.height * scale + 32}px`,
           }}
         >
+          <div 
+            className="bg-white border border-zinc-600 shadow-2xl relative flex-shrink-0"
+            style={{
+              width: `${project.width * scale}px`,
+              height: `${project.height * scale}px`,
+            }}
+          >
           {/* Canvas element - TUTAJ RYSUJESZ */}
           <canvas
             ref={canvasRef}
             width={project.width}
             height={project.height}
-            className="w-full h-full"
             draggable={false}
             style={{ 
               cursor: getCursorStyle(),
-              imageRendering: 'pixelated' // Ostre piksele bez interpolacji
+              imageRendering: 'pixelated', // Ostre piksele bez interpolacji
+              width: '100%',
+              height: '100%',
+              display: 'block'
             }}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -845,12 +915,110 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
               // Nie resetujemy isDrawing i startPoint - czekamy na mouseup
             }}
           />
+          
+          {/* Overlay canvas dla selection i preview */}
+          <canvas
+            width={project.width}
+            height={project.height}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              pointerEvents: 'none',
+              imageRendering: 'pixelated'
+            }}
+            ref={(overlayCanvas) => {
+              if (!overlayCanvas) return;
+              const ctx = overlayCanvas.getContext('2d');
+              if (!ctx) return;
+              
+              // Wyczyść overlay
+              ctx.clearRect(0, 0, project.width, project.height);
+              ctx.imageSmoothingEnabled = false;
+              
+              // Rysuj niebieską ramkę dla zaznaczonego kształtu
+              if (selectedShape && currentTool === 'select') {
+                const shape = selectedShape.shape;
+                ctx.strokeStyle = '#3b82f6'; // Niebieski kolor
+                ctx.lineWidth = 2 / scale; // Dostosuj grubość do skali
+                ctx.setLineDash([4 / scale, 4 / scale]); // Przerywana linia
+                
+                const bbox = shape.getBoundingBox();
+                if (bbox) {
+                  ctx.strokeRect(bbox.x, bbox.y, bbox.width, bbox.height);
+                }
+                
+                ctx.setLineDash([]); // Reset
+              }
+              
+              // Rysuj preview przesuwania (cień) - TYLKO DLA OBRAZÓW
+              if (isDragging && dragPreviewPosition && selectedShape && selectedShape.shape.type === 'image') {
+                const bbox = selectedShape.shape.getBoundingBox();
+                if (bbox) {
+                  ctx.strokeStyle = '#3b82f6'; // Niebieski
+                  ctx.fillStyle = 'rgba(59, 130, 246, 0.1)'; // Półprzezroczyste wypełnienie
+                  ctx.lineWidth = 2 / scale;
+                  ctx.setLineDash([4 / scale, 4 / scale]);
+                  
+                  // dragPreviewPosition.x i .y to już docelowa pozycja (nie offset)
+                  ctx.fillRect(dragPreviewPosition.x, dragPreviewPosition.y, bbox.width, bbox.height);
+                  ctx.strokeRect(dragPreviewPosition.x, dragPreviewPosition.y, bbox.width, bbox.height);
+                  
+                  ctx.setLineDash([]);
+                }
+              }
+            }}
+          />
+          </div>
         </div>
       </div>
       
-      {/* Zoom indicator */}
-      <div className="absolute bottom-4 right-4 bg-zinc-900 bg-opacity-80 text-white px-3 py-2 rounded text-sm">
-        {Math.round(scale * 100)}%
+      {/* Zoom control with slider */}
+      <div className="absolute bottom-4 right-4 bg-zinc-900/90 backdrop-blur-sm text-white rounded-lg border border-zinc-700/50 shadow-lg">
+        <div className="flex items-center space-x-3 px-3 py-2">
+          
+          {/* Zoom slider */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setScale(prev => Math.max(prev - 0.1, 0.1))}
+              className="text-zinc-400 hover:text-white transition-colors w-6 h-6 flex items-center justify-center hover:bg-zinc-800 rounded"
+              title="Zmniejsz (Ctrl + -)"
+            >
+              <i className="ri-subtract-line"></i>
+            </button>
+            
+            <input
+              type="range"
+              min="10"
+              max="500"
+              step="10"
+              value={Math.round(scale * 100)}
+              onChange={(e) => setScale(parseInt(e.target.value) / 100)}
+              className="w-24 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer zoom-slider"
+              style={{
+                background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${((Math.round(scale * 100) - 10) / 490) * 100}%, #3f3f46 ${((Math.round(scale * 100) - 10) / 490) * 100}%, #3f3f46 100%)`
+              }}
+            />
+            
+            <button
+              onClick={() => setScale(prev => Math.min(prev + 0.1, 5))}
+              className="text-zinc-400 hover:text-white transition-colors w-6 h-6 flex items-center justify-center hover:bg-zinc-800 rounded"
+              title="Powiększ (Ctrl + +)"
+            >
+              <i className="ri-add-line"></i>
+            </button>
+          </div>
+          
+          {/* Zoom percentage */}
+          <div 
+            className="text-sm font-medium text-white text-center pr-3 select-none cursor-pointer"
+            onClick={resetZoom}
+          >
+            {Math.round(scale * 100)}%
+          </div>
+        </div>
       </div>
 
       {/* Info panel */}
@@ -863,6 +1031,40 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
           </div>
         )}
       </div>
+
+      {/* Styles for zoom slider */}
+      <style jsx>{`
+        .zoom-slider::-webkit-slider-thumb {
+          appearance: none;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: white;
+          cursor: pointer;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+          border: 2px solid #6366f1;
+        }
+
+        .zoom-slider::-moz-range-thumb {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: white;
+          cursor: pointer;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+          border: 2px solid #6366f1;
+        }
+
+        .zoom-slider::-webkit-slider-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        .zoom-slider::-moz-range-thumb:hover {
+          transform: scale(1.1);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+        }
+      `}</style>
     </div>
   );
 }
