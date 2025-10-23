@@ -14,6 +14,9 @@
 
 Salvador is a pixel-based graphics editor built as a university project for **Computer Graphics** course at **Bialystok University of Technology**. Named after the legendary artist **Salvador Dalí**, it aims to bring professional image editing capabilities directly to your browser.
 
+Try it here:
+[https://pajojeku-salvador.netlify.app/](https://pajojeku-salvador.netlify.app/) 
+
 <div align="center">
     <img src="early_screenshot.png" alt="Early screenshot" />
 </div>
