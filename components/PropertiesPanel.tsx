@@ -7,6 +7,7 @@ import { Circle } from '@/lib/shapes/Circle';
 import { Rectangle } from '@/lib/shapes/Rectangle';
 import { Line } from '@/lib/shapes/Line';
 import { Brush } from '@/lib/shapes/Brush';
+import { RGBCube } from '@/lib/shapes/RGBCube';
 import ColorPickerModal from './ColorPickerModal';
 
 interface PropertiesPanelProps {
@@ -84,20 +85,22 @@ export default function PropertiesPanel({
               Type: <span className="text-zinc-300 capitalize">{selectedShape.type}</span>
             </div>
 
-            {/* Color Picker */}
-            <div className="space-y-2">
-              <label className="text-xs text-zinc-400 block">Color</label>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsColorPickerOpen(true)}
-                  className="w-12 h-8 border-2 border-zinc-600 rounded cursor-pointer hover:border-indigo-500 transition-colors"
-                  style={{ backgroundColor: `#${selectedShape.color.r.toString(16).padStart(2, '0')}${selectedShape.color.g.toString(16).padStart(2, '0')}${selectedShape.color.b.toString(16).padStart(2, '0')}` }}
-                />
-                <span className="text-xs text-zinc-400">
-                  RGB({selectedShape.color.r}, {selectedShape.color.g}, {selectedShape.color.b})
-                </span>
+            {/* Color Picker - ukryj dla RGB Cube */}
+            {!(selectedShape instanceof RGBCube) && (
+              <div className="space-y-2">
+                <label className="text-xs text-zinc-400 block">Color</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsColorPickerOpen(true)}
+                    className="w-12 h-8 border-2 border-zinc-600 rounded cursor-pointer hover:border-indigo-500 transition-colors"
+                    style={{ backgroundColor: `#${selectedShape.color.r.toString(16).padStart(2, '0')}${selectedShape.color.g.toString(16).padStart(2, '0')}${selectedShape.color.b.toString(16).padStart(2, '0')}` }}
+                  />
+                  <span className="text-xs text-zinc-400">
+                    RGB({selectedShape.color.r}, {selectedShape.color.g}, {selectedShape.color.b})
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Circle Properties */}
             {selectedShape instanceof Circle && (
@@ -471,6 +474,136 @@ export default function PropertiesPanel({
                     }}
                     className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
                   />
+                </div>
+              </div>
+            )}
+
+            {/* RGB Cube Properties */}
+            {selectedShape instanceof RGBCube && (
+              <div className="space-y-2 text-xs">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-zinc-400 block mb-1">X</label>
+                    <input
+                      type="number"
+                      value={Math.round(selectedShape.x)}
+                      onInput={(e) => {
+                        const oldX = selectedShape.x;
+                        selectedShape.x = Number((e.target as HTMLInputElement).value) || 0;
+                        onShapeUpdate?.();
+                      }}
+                      className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-zinc-400 block mb-1">Y</label>
+                    <input
+                      type="number"
+                      value={Math.round(selectedShape.y)}
+                      onInput={(e) => {
+                        selectedShape.y = Number((e.target as HTMLInputElement).value) || 0;
+                        onShapeUpdate?.();
+                      }}
+                      className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-zinc-400 block mb-1">Size</label>
+                  <input
+                    type="number"
+                    value={Math.round(selectedShape.size)}
+                    onInput={(e) => {
+                      selectedShape.size = Math.max(10, Number((e.target as HTMLInputElement).value) || 10);
+                      onShapeUpdate?.();
+                    }}
+                    className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
+                  />
+                </div>
+
+                {/* Rotation Controls */}
+                <div className="space-y-2 mt-3 border-t border-zinc-700 pt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-400">Rotation X</span>
+                    <div className="flex items-center space-x-2">
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        min="0" 
+                        max="6.28" 
+                        value={selectedShape.rotationX.toFixed(2)}
+                        onInput={(e) => {
+                          selectedShape.rotationX = Number((e.target as HTMLInputElement).value) || 0;
+                          onShapeUpdate?.();
+                        }}
+                        className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1 w-16"
+                      />
+                      <span className="text-xs text-zinc-400">rad</span>
+                    </div>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="6.28" 
+                    step="0.01"
+                    value={selectedShape.rotationX}
+                    onInput={(e) => {
+                      selectedShape.rotationX = Number((e.target as HTMLInputElement).value) || 0;
+                      onShapeUpdate?.();
+                    }}
+                    className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-400">Rotation Y</span>
+                    <div className="flex items-center space-x-2">
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        min="0" 
+                        max="6.28" 
+                        value={selectedShape.rotationY.toFixed(2)}
+                        onInput={(e) => {
+                          selectedShape.rotationY = Number((e.target as HTMLInputElement).value) || 0;
+                          onShapeUpdate?.();
+                        }}
+                        className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1 w-16"
+                      />
+                      <span className="text-xs text-zinc-400">rad</span>
+                    </div>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="0" 
+                    max="6.28" 
+                    step="0.01"
+                    value={selectedShape.rotationY}
+                    onInput={(e) => {
+                      selectedShape.rotationY = Number((e.target as HTMLInputElement).value) || 0;
+                      onShapeUpdate?.();
+                    }}
+                    className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+
+                {/* Show Frame Toggle */}
+                <div className="flex items-center justify-between py-2 border-t border-zinc-700 mt-2 pt-2">
+                  <span className="text-xs text-zinc-400">Show Frame</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedShape.showFrame}
+                      onChange={(e) => {
+                        selectedShape.showFrame = e.target.checked;
+                        onShapeUpdate?.();
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
                 </div>
               </div>
             )}

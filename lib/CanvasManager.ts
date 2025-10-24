@@ -1,4 +1,4 @@
-import { Shape, Line, Rectangle, Circle, Brush, ImageShape, LineData, RectangleData, CircleData } from './shapes/index'
+import { Shape, Line, Rectangle, Circle, Brush, ImageShape, RGBCube, LineData, RectangleData, CircleData } from './shapes/index'
 
 export interface CanvasState {
   shapes: Shape[];
@@ -148,7 +148,7 @@ export class CanvasManager {
   /**
    * Dodaj kształt z ręcznie wprowadzonymi danymi (z modala)
    */
-  addShapeManually(type: 'line' | 'rectangle' | 'circle', params: any): void {
+  addShapeManually(type: 'line' | 'rectangle' | 'circle' | 'rgbcube', params: any): void {
     let shape: Shape | null = null;
 
     if (type === 'rectangle') {
@@ -173,6 +173,14 @@ export class CanvasManager {
       shape = new Line(
         { x: params.x1, y: params.y1 },
         { x: params.x2, y: params.y2 },
+        params.color,
+        params.strokeWidth
+      );
+    } else if (type === 'rgbcube') {
+      shape = new RGBCube(
+        params.x,
+        params.y,
+        params.size,
         params.color,
         params.strokeWidth
       );
@@ -319,6 +327,9 @@ export class CanvasManager {
           break;
         case 'circle':
           shape = Circle.deserialize(shapeData as CircleData);
+          break;
+        case 'rgbcube':
+          shape = RGBCube.fromJSON(shapeData);
           break;
         case 'brush':
           shape = Brush.deserialize(shapeData);

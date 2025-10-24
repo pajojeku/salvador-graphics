@@ -4,3 +4,4 @@ export * from './Rectangle';
 export * from './Circle';
 export * from './Brush';
 export * from './Image';
+export * from './RGBCube';

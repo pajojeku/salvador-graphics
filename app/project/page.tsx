@@ -29,7 +29,7 @@ function ProjectContent() {
   const canvasManagerRef = useRef<CanvasManager | null>(null);
   const canvasRefreshRef = useRef<(() => void) | null>(null);
   const [isShapeModalOpen, setIsShapeModalOpen] = useState(false);
-  const [modalShapeType, setModalShapeType] = useState<'line' | 'rectangle' | 'circle' | null>(null);
+  const [modalShapeType, setModalShapeType] = useState<'line' | 'rectangle' | 'circle' | 'rgbcube' | null>(null);
   const [isExportJPGModalOpen, setIsExportJPGModalOpen] = useState(false);
 
   useEffect(() => {
@@ -125,7 +125,7 @@ function ProjectContent() {
 
   const handleShapeModalOpen = (toolId: string) => {
     if (['line', 'rectangle', 'circle'].includes(toolId)) {
-      setModalShapeType(toolId as 'line' | 'rectangle' | 'circle');
+      setModalShapeType(toolId as 'line' | 'rectangle' | 'circle' | 'rgbcube');
       setIsShapeModalOpen(true);
     }
   };
@@ -176,6 +176,14 @@ function ProjectContent() {
         y1: data.y1,
         x2: data.x2,
         y2: data.y2,
+        color,
+        strokeWidth
+      });
+    } else if (modalShapeType === 'rgbcube' && data.cubeX !== undefined && data.cubeY !== undefined && data.size !== undefined) {
+      canvasManagerRef.current.addShapeManually('rgbcube', {
+        x: data.cubeX,
+        y: data.cubeY,
+        size: data.size,
         color,
         strokeWidth
       });

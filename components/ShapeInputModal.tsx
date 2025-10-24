@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 
 interface ShapeInputModalProps {
   isOpen: boolean;
-  shapeType: 'line' | 'rectangle' | 'circle' | null;
+  shapeType: 'line' | 'rectangle' | 'circle' | 'rgbcube' | null;
   onClose: () => void;
   onSubmit: (data: ShapeInputData) => void;
   canvasWidth: number;
@@ -30,6 +30,11 @@ export interface ShapeInputData {
   y1?: number;
   x2?: number;
   y2?: number;
+  
+  // For RGB Cube
+  cubeX?: number;
+  cubeY?: number;
+  size?: number;
 }
 
 export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, canvasWidth, canvasHeight }: ShapeInputModalProps) {
@@ -268,6 +273,58 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
           </>
         );
       
+      case 'rgbcube':
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                  Środek X
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max={canvasWidth}
+                  value={formData.cubeX ?? ''}
+                  onChange={(e) => handleChange('cubeX', parseInt(e.target.value) || 0)}
+                  className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                  placeholder="200"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">
+                  Środek Y
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max={canvasHeight}
+                  value={formData.cubeY ?? ''}
+                  onChange={(e) => handleChange('cubeY', parseInt(e.target.value) || 0)}
+                  className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                  placeholder="200"
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-2">
+                Rozmiar
+              </label>
+              <input
+                type="number"
+                min="10"
+                value={formData.size ?? ''}
+                onChange={(e) => handleChange('size', parseInt(e.target.value) || 0)}
+                className="w-full bg-zinc-700 border border-zinc-600 rounded px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                placeholder="100"
+                required
+              />
+            </div>
+          </>
+        );
+      
       default:
         return null;
     }
@@ -281,6 +338,8 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
         return 'Dodaj koło';
       case 'line':
         return 'Dodaj linię';
+      case 'rgbcube':
+        return 'Dodaj kostkę RGB';
       default:
         return 'Dodaj figurę';
     }

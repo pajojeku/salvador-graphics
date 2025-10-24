@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { CanvasManager } from '@/lib/CanvasManager';
-import { Line, Rectangle, Circle, Brush } from '@/lib/shapes';
+import { Line, Rectangle, Circle, Brush, RGBCube } from '@/lib/shapes';
 import { projectStorage } from '@/lib/projectStorage';
 
 interface CanvasProps {
@@ -392,6 +392,13 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
           const radius = Math.sqrt((x - startPoint.x) ** 2 + (y - startPoint.y) ** 2);
           const circle = new Circle(startPoint, radius, false, color, strokeWidth);
           canvasManager.addShape(circle);
+        } else if (currentTool === 'rgbcube') {
+          const size = Math.max(Math.abs(x - startPoint.x), Math.abs(y - startPoint.y));
+          // Użyj startPoint jako środka kostki, a nie lewego górnego rogu
+          const centerX = startPoint.x;
+          const centerY = startPoint.y;
+          const cube = new RGBCube(centerX, centerY, size, color, strokeWidth);
+          canvasManager.addShape(cube);
         }
         
         // Renderuj tylko dla innych kształtów
@@ -471,6 +478,10 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
           const img = shape as any;
           shapeX = img.x;
           shapeY = img.y;
+        } else if (shape.type === 'rgbcube') {
+          const cube = shape as RGBCube;
+          shapeX = cube.x;
+          shapeY = cube.y;
         }
         
         setSelectedShape({
@@ -480,8 +491,8 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         });
         setIsDragging(true);
         
-        // Dla obrazów ustaw początkową pozycję preview na aktualną pozycję obrazu
-        if (shape.type === 'image') {
+        // Dla obrazów i kostek RGB ustaw początkową pozycję preview na aktualną pozycję
+        if (shape.type === 'image' || shape.type === 'rgbcube') {
           setDragPreviewPosition({ x: shapeX, y: shapeY });
         }
         
@@ -636,8 +647,8 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     if (isDragging && selectedShape && currentTool === 'select') {
       const shape = selectedShape.shape;
       
-      // Tylko dla obrazów - pokazuj preview zamiast bezpośredniego przesuwania
-      if (shape.type === 'image') {
+      // Dla obrazów i kostek RGB - pokazuj preview zamiast bezpośredniego przesuwania
+      if (shape.type === 'image' || shape.type === 'rgbcube') {
         const newX = Math.round(x - selectedShape.offsetX);
         const newY = Math.round(y - selectedShape.offsetY);
         setDragPreviewPosition({ x: newX, y: newY });
@@ -738,6 +749,67 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
           ctx.beginPath();
           ctx.arc(startPoint.x, startPoint.y, radius, 0, 2 * Math.PI);
           ctx.stroke();
+        } else if (currentTool === 'rgbcube') {
+          // Draw 3D cube wireframe preview
+          const size = Math.max(Math.abs(x - startPoint.x), Math.abs(y - startPoint.y));
+          const color = hexToRgb(currentColor);
+          // Użyj startPoint jako środka kostki
+          const centerX = startPoint.x;
+          const centerY = startPoint.y;
+          const cube = new RGBCube(centerX, centerY, size, color, strokeWidth);
+          
+          // Helper function to rotate and project a point
+          const rotateAndProject = (px: number, py: number, pz: number) => {
+            // Rotate around X axis
+            const cosX = Math.cos(cube.rotationX);
+            const sinX = Math.sin(cube.rotationX);
+            const y1 = py * cosX - pz * sinX;
+            const z1 = py * sinX + pz * cosX;
+            
+            // Rotate around Y axis
+            const cosY = Math.cos(cube.rotationY);
+            const sinY = Math.sin(cube.rotationY);
+            const x2 = px * cosY + z1 * sinY;
+            const z2 = -px * sinY + z1 * cosY;
+            
+            // Perspective projection - używaj tej samej logiki co w RGBCube.project()
+            const cameraDistance = Math.max(200, size * 2);
+            const scale = cameraDistance / (cameraDistance + z2);
+            return {
+              x: cube.x + x2 * scale,
+              y: cube.y + y1 * scale
+            };
+          };
+          
+          // Create 8 vertices of the cube
+          const s = size / 2;
+          const vertices = [
+            rotateAndProject(-s, -s, -s), // 0
+            rotateAndProject(s, -s, -s),  // 1
+            rotateAndProject(s, s, -s),   // 2
+            rotateAndProject(-s, s, -s),  // 3
+            rotateAndProject(-s, -s, s),  // 4
+            rotateAndProject(s, -s, s),   // 5
+            rotateAndProject(s, s, s),    // 6
+            rotateAndProject(-s, s, s)    // 7
+          ];
+          
+          // Draw 12 edges of the cube
+          const edges = [
+            // Front face
+            [0, 1], [1, 2], [2, 3], [3, 0],
+            // Back face
+            [4, 5], [5, 6], [6, 7], [7, 4],
+            // Connecting edges
+            [0, 4], [1, 5], [2, 6], [3, 7]
+          ];
+          
+          ctx.beginPath();
+          edges.forEach(([start, end]) => {
+            ctx.moveTo(vertices[start].x, vertices[start].y);
+            ctx.lineTo(vertices[end].x, vertices[end].y);
+          });
+          ctx.stroke();
         }
 
         ctx.setLineDash([]);
@@ -765,18 +837,28 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       return;
     }
 
-    // Koniec przesuwania - faktycznie przesuń obraz (tylko dla image type)
-    if (isDragging && selectedShape && dragPreviewPosition && selectedShape.shape.type === 'image') {
+    // Koniec przesuwania - faktycznie przesuń obraz lub kostkę RGB
+    if (isDragging && selectedShape && dragPreviewPosition && (selectedShape.shape.type === 'image' || selectedShape.shape.type === 'rgbcube')) {
       const shape = selectedShape.shape;
-      const img = shape as any;
-      const currentX = Math.round(img.x);
-      const currentY = Math.round(img.y);
+      let currentX = 0;
+      let currentY = 0;
       
-      // Oblicz przesunięcie i faktycznie przesuń obraz
+      if (shape.type === 'image') {
+        const img = shape as any;
+        currentX = Math.round(img.x);
+        currentY = Math.round(img.y);
+      } else if (shape.type === 'rgbcube') {
+        const cube = shape as any;
+        currentX = Math.round(cube.x);
+        currentY = Math.round(cube.y);
+      }
+      
+      // Oblicz przesunięcie - przesuń TYLKO jeśli pozycja faktycznie się zmieniła
       const dx = dragPreviewPosition.x - currentX;
       const dy = dragPreviewPosition.y - currentY;
       
-      if (dx !== 0 || dy !== 0) {
+      // Przesuń tylko jeśli nastąpiło faktyczne przesunięcie (więcej niż 1 piksel)
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
         shape.move(dx, dy);
         canvasManager.render();
         refreshCanvas();
@@ -832,6 +914,13 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       const radius = Math.sqrt((x - startPoint.x) ** 2 + (y - startPoint.y) ** 2);
       const circle = new Circle(startPoint, radius, false, color, strokeWidth);
       canvasManager.addShape(circle);
+    } else if (currentTool === 'rgbcube') {
+      const size = Math.max(Math.abs(x - startPoint.x), Math.abs(y - startPoint.y));
+      // Użyj startPoint jako środka kostki
+      const centerX = startPoint.x;
+      const centerY = startPoint.y;
+      const cube = new RGBCube(centerX, centerY, size, color, strokeWidth);
+      canvasManager.addShape(cube);
     }
 
     // Renderuj i aktualizuj canvas
@@ -962,32 +1051,99 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
               // Rysuj niebieską ramkę dla zaznaczonego kształtu
               if (selectedShape && currentTool === 'select') {
                 const shape = selectedShape.shape;
-                ctx.strokeStyle = '#3b82f6'; // Niebieski kolor
-                ctx.lineWidth = 2 / scale; // Dostosuj grubość do skali
-                ctx.setLineDash([4 / scale, 4 / scale]); // Przerywana linia
                 
-                const bbox = shape.getBoundingBox();
-                if (bbox) {
-                  ctx.strokeRect(bbox.x, bbox.y, bbox.width, bbox.height);
-                }
-                
-                ctx.setLineDash([]); // Reset
-              }
-              
-              // Rysuj preview przesuwania (cień) - TYLKO DLA OBRAZÓW
-              if (isDragging && dragPreviewPosition && selectedShape && selectedShape.shape.type === 'image') {
-                const bbox = selectedShape.shape.getBoundingBox();
-                if (bbox) {
+                // Dla RGB Cube - rysuj wireframe zamiast prostokąta
+                if (shape.type === 'rgbcube') {
+                  const cube = shape as RGBCube;
+                  const { vertices2D } = (cube as any).getVertices();
+                  
                   ctx.strokeStyle = '#3b82f6'; // Niebieski
-                  ctx.fillStyle = 'rgba(59, 130, 246, 0.1)'; // Półprzezroczyste wypełnienie
                   ctx.lineWidth = 2 / scale;
                   ctx.setLineDash([4 / scale, 4 / scale]);
                   
-                  // dragPreviewPosition.x i .y to już docelowa pozycja (nie offset)
-                  ctx.fillRect(dragPreviewPosition.x, dragPreviewPosition.y, bbox.width, bbox.height);
-                  ctx.strokeRect(dragPreviewPosition.x, dragPreviewPosition.y, bbox.width, bbox.height);
+                  // 12 krawędzi kostki
+                  const edges = [
+                    [0, 1], [1, 2], [2, 3], [3, 0], // Front
+                    [4, 5], [5, 6], [6, 7], [7, 4], // Back
+                    [0, 4], [1, 5], [2, 6], [3, 7]  // Connect
+                  ];
+                  
+                  ctx.beginPath();
+                  edges.forEach(([start, end]) => {
+                    ctx.moveTo(vertices2D[start].x, vertices2D[start].y);
+                    ctx.lineTo(vertices2D[end].x, vertices2D[end].y);
+                  });
+                  ctx.stroke();
                   
                   ctx.setLineDash([]);
+                } else {
+                  // Dla innych kształtów - prostokątne obramowanie
+                  ctx.strokeStyle = '#3b82f6'; // Niebieski kolor
+                  ctx.lineWidth = 2 / scale; // Dostosuj grubość do skali
+                  ctx.setLineDash([4 / scale, 4 / scale]); // Przerywana linia
+                  
+                  const bbox = shape.getBoundingBox();
+                  if (bbox) {
+                    ctx.strokeRect(bbox.x, bbox.y, bbox.width, bbox.height);
+                  }
+                  
+                  ctx.setLineDash([]); // Reset
+                }
+              }
+              
+              // Rysuj preview przesuwania (cień) - DLA OBRAZÓW I KOSTEK RGB
+              if (isDragging && dragPreviewPosition && selectedShape) {
+                const bbox = selectedShape.shape.getBoundingBox();
+                if (bbox) {
+                  if (selectedShape.shape.type === 'image') {
+                    // Dla obrazów - prostokątny cień
+                    ctx.strokeStyle = '#3b82f6'; // Niebieski
+                    ctx.fillStyle = 'rgba(59, 130, 246, 0.1)'; // Półprzezroczyste wypełnienie
+                    ctx.lineWidth = 2 / scale;
+                    ctx.setLineDash([4 / scale, 4 / scale]);
+                    
+                    ctx.fillRect(dragPreviewPosition.x, dragPreviewPosition.y, bbox.width, bbox.height);
+                    ctx.strokeRect(dragPreviewPosition.x, dragPreviewPosition.y, bbox.width, bbox.height);
+                    
+                    ctx.setLineDash([]);
+                  } else if (selectedShape.shape.type === 'rgbcube') {
+                    // Dla kostki RGB - wireframe 3D
+                    const cube = selectedShape.shape as RGBCube;
+                    
+                    // Tymczasowo zmień pozycję kostki na pozycję preview
+                    const savedX = cube.x;
+                    const savedY = cube.y;
+                    cube.x = dragPreviewPosition.x;
+                    cube.y = dragPreviewPosition.y;
+                    
+                    // Pobierz wierzchołki (metoda getVertices jest private, użyjemy any)
+                    const { vertices2D } = (cube as any).getVertices();
+                    
+                    // Przywróć oryginalną pozycję
+                    cube.x = savedX;
+                    cube.y = savedY;
+                    
+                    // Rysuj wireframe
+                    ctx.strokeStyle = '#3b82f6'; // Niebieski
+                    ctx.lineWidth = 2 / scale;
+                    ctx.setLineDash([4 / scale, 4 / scale]);
+                    
+                    // 12 krawędzi kostki
+                    const edges = [
+                      [0, 1], [1, 2], [2, 3], [3, 0], // Front
+                      [4, 5], [5, 6], [6, 7], [7, 4], // Back
+                      [0, 4], [1, 5], [2, 6], [3, 7]  // Connect
+                    ];
+                    
+                    ctx.beginPath();
+                    edges.forEach(([start, end]) => {
+                      ctx.moveTo(vertices2D[start].x, vertices2D[start].y);
+                      ctx.lineTo(vertices2D[end].x, vertices2D[end].y);
+                    });
+                    ctx.stroke();
+                    
+                    ctx.setLineDash([]);
+                  }
                 }
               }
             }}
