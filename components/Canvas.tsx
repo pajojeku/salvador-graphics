@@ -40,6 +40,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
   const [isLoading, setIsLoading] = useState(false);
   const [mousePosition, setMousePosition] = useState<{ x: number; y: number } | null>(null);
   const [pixelColor, setPixelColor] = useState<{ r: number; g: number; b: number; a: number } | null>(null);
+  const [rgbCubeCrossSection, setRgbCubeCrossSection] = useState<{ imageData: ImageData; axis: string; value: number; crossSectionLine?: Array<{x: number, y: number}> } | null>(null);
   const updateTrigger = useRef(0);
   const lastRenderTime = useRef<number>(0);
   const renderAnimationFrame = useRef<number | null>(null);
@@ -573,9 +574,45 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       // Pobierz kolor piksela
       const color = canvasManager.getPixel(pixelX, pixelY);
       setPixelColor(color);
+      
+      // Sprawdź czy mysz jest nad ZAZNACZONYM RGB Cube i wygeneruj przekrój
+      // ALE tylko gdy cube NIE jest przenoszony ani skalowany
+      let crossSectionGenerated = false;
+      
+      // Przekrój tylko dla zaznaczonego RGB Cube, który nie jest obecnie przenoszony/skalowany
+      if (selectedShape && selectedShape.shape.type === 'rgbcube' && !isDragging && !isResizing) {
+        const cube = selectedShape.shape as RGBCube;
+        
+        // Sprawdź czy punkt jest wewnątrz rzutowanej kostki
+        if (cube.containsPoint({ x: pixelX, y: pixelY })) {
+          // Znajdź ścianę i wartość na osi prostopadłej
+          const faceInfo = cube.findFaceAt3DPoint(pixelX, pixelY);
+          
+          if (faceInfo) {
+            // Generuj przekrój prostopadły do wykrytej ściany
+            const crossSection = cube.generateCrossSection(faceInfo.axis, faceInfo.value, 100);
+            
+            // Oblicz linię przekroju na ścianie
+            const crossSectionLine = cube.getCrossSectionLineOnFace(faceInfo.axis, faceInfo.value, pixelX, pixelY);
+            
+            setRgbCubeCrossSection({
+              imageData: crossSection,
+              axis: faceInfo.axis.toUpperCase(),
+              value: faceInfo.value,
+              crossSectionLine: crossSectionLine || undefined
+            });
+            crossSectionGenerated = true;
+          }
+        }
+      }
+      
+      if (!crossSectionGenerated) {
+        setRgbCubeCrossSection(null);
+      }
     } else {
       setMousePosition(null);
       setPixelColor(null);
+      setRgbCubeCrossSection(null);
     }
 
     // Zmień kursor jeśli jesteśmy nad handle'm w trybie select
@@ -1146,6 +1183,29 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
                   }
                 }
               }
+              
+              // Rysuj czerwoną linię przekroju RGB Cube
+              if (rgbCubeCrossSection && rgbCubeCrossSection.crossSectionLine) {
+                const line = rgbCubeCrossSection.crossSectionLine;
+                if (line.length >= 2) {
+                  ctx.strokeStyle = '#ef4444'; // Czerwony
+                  ctx.lineWidth = 3 / scale;
+                  ctx.setLineDash([]); // Solid line
+                  
+                  ctx.beginPath();
+                  ctx.moveTo(line[0].x, line[0].y);
+                  ctx.lineTo(line[1].x, line[1].y);
+                  ctx.stroke();
+                  
+                  // Dodaj małe kropki na końcach linii
+                  ctx.fillStyle = '#ef4444';
+                  [line[0], line[1]].forEach(point => {
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, 3 / scale, 0, 2 * Math.PI);
+                    ctx.fill();
+                  });
+                }
+              }
             }}
           />
           </div>
@@ -1232,6 +1292,32 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
           </div>
         )}
       </div>
+
+      {/* RGB Cube Cross Section Preview */}
+      {rgbCubeCrossSection && (
+        <div className="absolute bottom-4 left-4 mb-32 bg-zinc-900 bg-opacity-90 text-white px-3 py-2 rounded space-y-1">
+          <div className="text-xs text-zinc-400 mb-1">
+            RGB Cube Cross Section ({rgbCubeCrossSection.axis}={Math.round(rgbCubeCrossSection.value)})
+          </div>
+          <canvas
+            ref={(canvas) => {
+              if (canvas && rgbCubeCrossSection) {
+                canvas.width = 100;
+                canvas.height = 100;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                  ctx.putImageData(rgbCubeCrossSection.imageData, 0, 0);
+                }
+              }
+            }}
+            className="border border-zinc-700 rounded"
+            style={{ width: '100px', height: '100px', imageRendering: 'pixelated' }}
+          />
+          <div className="text-[10px] text-zinc-500">
+            Plane perpendicular to {rgbCubeCrossSection.axis}-axis
+          </div>
+        </div>
+      )}
 
       {/* Styles for zoom slider */}
       <style jsx>{`
