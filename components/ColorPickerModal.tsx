@@ -313,6 +313,19 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
         className="bg-zinc-800 rounded-lg shadow-2xl border border-zinc-700 w-full max-w-3xl"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-zinc-700">
+          <h2 className="text-lg font-semibold text-white flex items-center space-x-2">
+            <i className="ri-palette-line text-indigo-400"></i>
+            <span>Color Picker</span>
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-zinc-400 hover:text-white transition-colors"
+          >
+            <i className="ri-close-line text-xl"></i>
+          </button>
+        </div>
         <form onSubmit={handleSubmit}>
           <div className="p-6 grid grid-cols-2 gap-6">
             {/* Left Column */}
