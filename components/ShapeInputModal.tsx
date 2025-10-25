@@ -347,18 +347,22 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-white">{getTitle()}</h2>
+      
+      <div className="bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-zinc-700">
+          <h2 className="text-lg font-semibold text-white flex items-center space-x-2">
+            <span>{getTitle()}</span>
+          </h2>
           <button
             onClick={onClose}
             className="text-zinc-400 hover:text-white transition-colors"
           >
-            <i className="ri-close-line text-2xl"></i>
+            <i className="ri-close-line text-xl"></i>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 p-6">
           {renderFields()}
 
           <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-zinc-700">
