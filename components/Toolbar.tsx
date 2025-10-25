@@ -18,12 +18,12 @@ interface ToolbarProps {
 export default function Toolbar({ selectedTool, onToolSelect, onShapeModalOpen, onUndo, onRedo, onClear, currentColor = '#000000', onColorChange }: ToolbarProps) {
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const tools = [
-    { id: 'select', icon: 'ri-cursor-line', tooltip: 'Select Tool (V)' },
-    { id: 'line', icon: 'ri-expand-diagonal-s-line', tooltip: 'Line Tool (L) | Shift+Click for manual input' },
-    { id: 'rectangle', icon: 'ri-checkbox-blank-line', tooltip: 'Rectangle Tool (R) | Shift+Click for manual input' },
-    { id: 'circle', icon: 'ri-checkbox-blank-circle-line', tooltip: 'Circle Tool (C) | Shift+Click for manual input' },
-    { id: 'rgbcube', icon: 'ri-box-3-line', tooltip: 'RGB Cube (3) | Shift+Click for manual input' },
-    { id: 'brush', icon: 'ri-brush-line', tooltip: 'Brush Tool (B)' },
+    { id: 'select', icon: 'ri-cursor-line', tooltip: 'Select Tool' },
+    { id: 'line', icon: 'ri-expand-diagonal-s-line', tooltip: 'Line Tool | Shift+Click for manual input' },
+    { id: 'rectangle', icon: 'ri-checkbox-blank-line', tooltip: 'Rectangle Tool | Shift+Click for manual input' },
+    { id: 'circle', icon: 'ri-checkbox-blank-circle-line', tooltip: 'Circle Tool | Shift+Click for manual input' },
+    { id: 'rgbcube', icon: 'ri-box-3-line', tooltip: 'RGB Cube' },
+    { id: 'brush', icon: 'ri-brush-line', tooltip: 'Brush Tool' },
     //{ id: 'eraser', icon: 'ri-eraser-line', tooltip: 'Eraser Tool (E)' },
     //{ id: 'eyedropper', icon: 'ri-drop-line', tooltip: 'Eyedropper Tool (I)' },
     //{ id: 'text', icon: 'ri-text', tooltip: 'Text Tool (T)' },

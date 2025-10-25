@@ -25,7 +25,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
   const [hexInput, setHexInput] = useState('#000000');
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Konwersja hex -> RGB
+  // Convert hex -> RGB
   const hexToRgb = (hex: string): { r: number; g: number; b: number } => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -35,7 +35,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
     } : { r: 0, g: 0, b: 0 };
   };
 
-  // Konwersja RGB -> Hex
+  // Convert RGB -> Hex
   const rgbToHex = (r: number, g: number, b: number): string => {
     return '#' + [r, g, b].map(x => {
       const hex = Math.round(x).toString(16);
@@ -43,7 +43,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
     }).join('');
   };
 
-  // Konwersja RGB -> CMYK
+  // Convert RGB -> CMYK
   const rgbToCmyk = (r: number, g: number, b: number): { c: number; m: number; y: number; k: number } => {
     const rNorm = r / 255;
     const gNorm = g / 255;
@@ -67,7 +67,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
     };
   };
 
-  // Konwersja CMYK -> RGB
+  // Convert CMYK -> RGB
   const cmykToRgb = (c: number, m: number, y: number, k: number): { r: number; g: number; b: number } => {
     const cNorm = c / 100;
     const mNorm = m / 100;
@@ -85,7 +85,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
     };
   };
 
-  // Konwersja RGB -> HSV (dla color pickera)
+  // Convert RGB -> HSV (for color picker)
   const rgbToHsv = (r: number, g: number, b: number): { h: number; s: number; v: number } => {
     const rNorm = r / 255;
     const gNorm = g / 255;
@@ -114,7 +114,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
     return { h, s, v };
   };
 
-  // Konwersja HSV -> RGB
+  // Convert HSV -> RGB
   const hsvToRgb = (h: number, s: number, v: number): { r: number; g: number; b: number } => {
     const sNorm = s / 100;
     const vNorm = v / 100;
@@ -208,7 +208,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
     setHexInput(hex);
   };
 
-  // Rysuj color picker canvas
+  // Draw color picker canvas
   useEffect(() => {
     if (!canvasRef.current) return;
     
@@ -219,37 +219,37 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
     const width = canvas.width;
     const height = canvas.height;
     
-    // Tło - gradient od białego (góra) do czarnego (dół)
+    // Background - gradient from white (top) to black (bottom)
     const vertGrad = ctx.createLinearGradient(0, 0, 0, height);
     vertGrad.addColorStop(0, 'white');
     vertGrad.addColorStop(1, 'black');
     
-    // Kolor bazowy na podstawie hue
+    // Base color based on hue
     const baseColor = hsvToRgb(hue, 100, 100);
     
-    // Gradient poziomy od białego do koloru bazowego
+    // Horizontal gradient from white to base color
     const horzGrad = ctx.createLinearGradient(0, 0, width, 0);
     horzGrad.addColorStop(0, 'white');
     horzGrad.addColorStop(1, `rgb(${baseColor.r}, ${baseColor.g}, ${baseColor.b})`);
     
-    // Rysuj poziomy gradient
+    // Draw horizontal gradient
     ctx.fillStyle = horzGrad;
     ctx.fillRect(0, 0, width, height);
     
-    // Nakładka pionowa dla ciemności
+    // Vertical overlay for darkness
     ctx.fillStyle = vertGrad;
     ctx.globalCompositeOperation = 'multiply';
     ctx.fillRect(0, 0, width, height);
     ctx.globalCompositeOperation = 'source-over';
     
-    // Rysuj wskaźnik (+) aktualnie wybranego koloru
+    // Draw indicator (+) of currently selected color
     const hsv = rgbToHsv(r, g, b);
     const x = (hsv.s / 100) * width;
     const y = (1 - hsv.v / 100) * height;
     
     const size = 6;
     
-    // Biała obramówka
+    // White border
     ctx.strokeStyle = 'white';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -259,7 +259,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
     ctx.lineTo(x, y + size);
     ctx.stroke();
     
-    // Czarny plus na wierzchu
+    // Black plus on top
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -271,7 +271,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
     
   }, [hue, r, g, b]);
 
-  // Obsługa kliknięcia w canvas
+  // Handle click on canvas
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -309,25 +309,10 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div 
+      <div
         className="bg-zinc-800 rounded-lg shadow-2xl border border-zinc-700 w-full max-w-3xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-zinc-700">
-          <h2 className="text-lg font-semibold text-white flex items-center space-x-2">
-            <i className="ri-palette-line text-indigo-400"></i>
-            <span>Wybór koloru</span>
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-zinc-400 hover:text-white transition-colors"
-          >
-            <i className="ri-close-line text-xl"></i>
-          </button>
-        </div>
-
-        {/* Content */}
         <form onSubmit={handleSubmit}>
           <div className="p-6 grid grid-cols-2 gap-6">
             {/* Left Column */}
@@ -339,7 +324,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
                   style={{ backgroundColor: currentHex }}
                 />
                 <div className="flex-1">
-                  <div className="text-sm text-zinc-400 mb-1">Podgląd koloru</div>
+                  <div className="text-sm text-zinc-400 mb-1">Color Preview</div>
                   <input
                     type="text"
                     value={hexInput}
@@ -352,7 +337,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
 
               {/* 2D Color picker */}
               <div>
-                <div className="text-sm text-zinc-300 mb-2">Wybierz kolor</div>
+                <div className="text-sm text-zinc-300 mb-2">Select Color</div>
                 <canvas
                   ref={canvasRef}
                   width={300}
@@ -365,7 +350,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
               {/* Hue slider */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-zinc-300">Odcień (Hue)</span>
+                  <span className="text-sm text-zinc-300">Hue</span>
                   <span className="text-sm text-zinc-500">{hue}°</span>
                 </div>
                 <input
@@ -395,7 +380,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
                 <button
                   type="button"
                   onClick={() => setMode('rgb')}
-                  className={`flex-1 px-4 py-2 rounded text-sm font-medium transition-colors ${
+                  className={`mt-7 flex-1 px-4 py-2 rounded text-sm font-medium transition-colors ${
                     mode === 'rgb'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
@@ -406,7 +391,7 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
                 <button
                   type="button"
                   onClick={() => setMode('cmyk')}
-                  className={`flex-1 px-4 py-2 rounded text-sm font-medium transition-colors ${
+                  className={`mt-7 flex-1 px-4 py-2 rounded text-sm font-medium transition-colors ${
                     mode === 'cmyk'
                       ? 'bg-indigo-600 text-white'
                       : 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600'
@@ -565,52 +550,18 @@ export default function ColorPickerModal({ isOpen, onClose, initialColor, onColo
               onClick={onClose}
               className="px-4 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-700 rounded transition-colors"
             >
-              Anuluj
+              Cancel
             </button>
             <button
               type="submit"
               className="px-4 py-2 text-sm bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded font-medium transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
             >
               <i className="ri-check-line"></i>
-              <span>Wybierz</span>
+              <span>Choose</span>
             </button>
           </div>
         </form>
       </div>
-
-      {/* Styles for sliders */}
-      <style jsx>{`
-        input[type="range"]::-webkit-slider-thumb {
-          appearance: none;
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: white;
-          cursor: pointer;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-          border: 2px solid #6366f1;
-        }
-
-        input[type="range"]::-moz-range-thumb {
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: white;
-          cursor: pointer;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-          border: 2px solid #6366f1;
-        }
-
-        input[type="range"]::-webkit-slider-thumb:hover {
-          transform: scale(1.1);
-          box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
-        }
-
-        input[type="range"]::-moz-range-thumb:hover {
-          transform: scale(1.1);
-          box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
-        }
-      `}</style>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import PointTransformationsModal from './PointTransformationsModal';
 
 interface HeaderProps {
   projectName?: string;
@@ -13,6 +14,7 @@ interface HeaderProps {
 
 export default function Header({ projectName, onExportPNG, onExportJPG, onSaveProject, onLoadProject }: HeaderProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [isPointTransformationsOpen, setPointTransformationsOpen] = useState(false);
 
   const menuItems = [
     { name: 'Salvador', icon: 'ri-home-line', isHome: true, logo: '/icon.png' },
@@ -38,6 +40,11 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
   const handleLoadProject = () => {
     setActiveMenu(null);
     onLoadProject?.();
+  };
+
+  const handlePointTransformations = () => {
+    setPointTransformationsOpen(true);
+    setActiveMenu(null);
   };
 
   return (
@@ -112,6 +119,7 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
                       onMouseLeave={() => setActiveMenu(null)}
                     >
                       <button
+                        onClick={handlePointTransformations}
                         className="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700 flex items-center space-x-2 cursor-pointer"
                       >
                         <i className="ri-color-filter-line"></i>
@@ -134,6 +142,12 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
 
         </div>
       </div>
+
+      <PointTransformationsModal
+        isOpen={isPointTransformationsOpen}
+        onClose={() => setPointTransformationsOpen(false)}
+        onApply={(values) => console.log('Applied values:', values)}
+      />
     </div>
   );
 }

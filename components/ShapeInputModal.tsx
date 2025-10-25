@@ -67,7 +67,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  X (pozycja)
+                  X (position)
                 </label>
                 <input
                   type="number"
@@ -82,7 +82,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Y (pozycja)
+                  Y (position)
                 </label>
                 <input
                   type="number"
@@ -99,7 +99,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Szerokość
+                  Width
                 </label>
                 <input
                   type="number"
@@ -113,7 +113,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Wysokość
+                  Height
                 </label>
                 <input
                   type="number"
@@ -134,7 +134,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
                   onChange={(e) => handleChange('filled', e.target.checked)}
                   className="w-4 h-4 rounded border-zinc-600 bg-zinc-700 text-indigo-600 focus:ring-indigo-500"
                 />
-                <span className="text-sm">Wypełnienie</span>
+                <span className="text-sm">Fill</span>
               </label>
             </div>
           </>
@@ -146,7 +146,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Środek X
+                  Center X
                 </label>
                 <input
                   type="number"
@@ -161,7 +161,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Środek Y
+                  Center Y
                 </label>
                 <input
                   type="number"
@@ -177,7 +177,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
             </div>
             <div>
               <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Promień
+                Radius
               </label>
               <input
                 type="number"
@@ -197,7 +197,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
                   onChange={(e) => handleChange('circleFilled', e.target.checked)}
                   className="w-4 h-4 rounded border-zinc-600 bg-zinc-700 text-indigo-600 focus:ring-indigo-500"
                 />
-                <span className="text-sm">Wypełnienie</span>
+                <span className="text-sm">Fill</span>
               </label>
             </div>
           </>
@@ -209,7 +209,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Początek X
+                  Start X
                 </label>
                 <input
                   type="number"
@@ -224,7 +224,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Początek Y
+                  Start Y
                 </label>
                 <input
                   type="number"
@@ -241,7 +241,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Koniec X
+                  End X
                 </label>
                 <input
                   type="number"
@@ -256,7 +256,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Koniec Y
+                  End Y
                 </label>
                 <input
                   type="number"
@@ -279,7 +279,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Środek X
+                  Center X
                 </label>
                 <input
                   type="number"
@@ -294,7 +294,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-2">
-                  Środek Y
+                  Center Y
                 </label>
                 <input
                   type="number"
@@ -310,7 +310,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
             </div>
             <div>
               <label className="block text-sm font-medium text-zinc-300 mb-2">
-                Rozmiar
+                Size
               </label>
               <input
                 type="number"
@@ -333,15 +333,15 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
   const getTitle = () => {
     switch (shapeType) {
       case 'rectangle':
-        return 'Dodaj prostokąt';
+        return 'Add Rectangle';
       case 'circle':
-        return 'Dodaj koło';
+        return 'Add Circle';
       case 'line':
-        return 'Dodaj linię';
+        return 'Add Line';
       case 'rgbcube':
-        return 'Dodaj kostkę RGB';
+        return 'Add RGB Cube';
       default:
-        return 'Dodaj figurę';
+        return 'Add Shape';
     }
   };
 
@@ -367,14 +367,14 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
               onClick={onClose}
               className="px-4 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-700 rounded transition-colors"
             >
-              Anuluj
+              Cancel
             </button>
             <button
               type="submit"
               className="px-4 py-2 text-sm bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded font-medium transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
             >
               <i className="ri-add-line"></i>
-              <span>Dodaj</span>
+              <span>Add</span>
             </button>
           </div>
         </form>
