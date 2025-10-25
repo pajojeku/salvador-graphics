@@ -103,6 +103,22 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
                       </button>
                     </div>
                   )}
+
+                  {/* Dropdown menu for Edit */}
+                  {item.name === 'Edit' && activeMenu === 'Edit' && (
+                    <div 
+                      className="absolute left-0 top-full mt-1 bg-zinc-800 border border-zinc-700 rounded shadow-lg py-1 min-w-[180px] z-50"
+                      onMouseEnter={() => setActiveMenu('Edit')}
+                      onMouseLeave={() => setActiveMenu(null)}
+                    >
+                      <button
+                        className="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700 flex items-center space-x-2 cursor-pointer"
+                      >
+                        <i className="ri-color-filter-line"></i>
+                        <span>Point Transformations</span>
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
