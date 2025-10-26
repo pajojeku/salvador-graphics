@@ -347,7 +347,7 @@ export class CanvasManager {
               shape.setOriginalPixels(pixels);
               // Automatycznie nałóż filtr zgodnie z parametrami z projektu
               let filtered = pixels;
-              const { filterType, maskSize, sobelDir, sobelThreshold, sharpenStrength } = shape;
+              const { filterType, maskSize, sobelDir, sobelThreshold, sharpenStrength, gaussianSigma } = shape;
               if (filterType === 'average') {
                 filtered = require('@/lib/filters').applyAverageFilter(pixels, shape.width, shape.height, maskSize ?? 3);
               } else if (filterType === 'median') {
@@ -356,6 +356,8 @@ export class CanvasManager {
                 filtered = require('@/lib/filters').applySobelFilter(pixels, shape.width, shape.height, sobelDir ?? 'xy', sobelThreshold ?? 64);
               } else if (filterType === 'sharpen') {
                 filtered = require('@/lib/filters').applySharpenFilter(pixels, shape.width, shape.height, sharpenStrength ?? 0.5);
+              } else if (filterType === 'gaussian') {
+                filtered = require('@/lib/filters').applyGaussianFilter(pixels, shape.width, shape.height, maskSize ?? 3, gaussianSigma ?? 1.0);
               }
               shape.setCachedPixels(filtered);
             } else {

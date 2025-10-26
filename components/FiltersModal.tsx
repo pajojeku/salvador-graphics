@@ -4,12 +4,13 @@ import {
   applyMedianFilter,
   applySobelFilter,
   applySharpenFilter,
+  applyGaussianFilter,
 } from '@/lib/filters';
 import { ImageShape } from '@/lib/shapes/Image';
 
 
 
-export type FilterType = 'none' | 'average' | 'median' | 'sobel' | 'sharpen';
+export type FilterType = 'none' | 'average' | 'median' | 'sobel' | 'sharpen' | 'gaussian';
 export type SobelDir = 'x' | 'y' | 'xy';
 
 interface FiltersModalProps {
@@ -29,10 +30,11 @@ interface FiltersModalProps {
   sharpenStrength: number;
   onSharpenStrengthChange: (v: number) => void;
   onReset: () => void;
+  gaussianSigma: number;
+  onGaussianSigmaChange: (v: number) => void;
 }
 
-
-export default function FiltersModal({
+const FiltersModal = ({
   isOpen,
   onClose,
   onApply,
@@ -48,8 +50,10 @@ export default function FiltersModal({
   onSobelThresholdChange,
   sharpenStrength,
   onSharpenStrengthChange,
-  onReset
-}: FiltersModalProps) {
+  onReset,
+  gaussianSigma,
+  onGaussianSigmaChange
+}: FiltersModalProps) => {
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Draw preview (just original for now)
@@ -71,6 +75,8 @@ export default function FiltersModal({
       filtered = applySobelFilter(src, width, height, sobelDir, sobelThreshold);
     } else if (filterType === 'sharpen') {
       filtered = applySharpenFilter(src, width, height, sharpenStrength);
+    } else if (filterType === 'gaussian') {
+      filtered = applyGaussianFilter(src, width, height, maskSize, gaussianSigma);
     } else if (filterType === 'none') {
       filtered = (imageShape as any).originalPixels ? (imageShape as any).originalPixels : src;
     }
@@ -79,7 +85,7 @@ export default function FiltersModal({
       previewImageData.data[i] = filtered[i];
     }
     ctx.putImageData(previewImageData, 0, 0);
-  }, [imageShape, isOpen, filterType, maskSize, sobelDir, sobelThreshold, sharpenStrength]);
+  }, [imageShape, isOpen, filterType, maskSize, sobelDir, sobelThreshold, sharpenStrength, gaussianSigma]);
 
   if (!isOpen) return null;
 
@@ -132,6 +138,7 @@ export default function FiltersModal({
                     <option value="none">None</option>
                     <option value="average">Smoothing (averaging)</option>
                     <option value="median">Median</option>
+                    <option value="gaussian">Gaussian blur</option>
                     <option value="sobel">Sobel edge detection</option>
                     <option value="sharpen">High-pass sharpening</option>
                   </select>
@@ -165,29 +172,55 @@ export default function FiltersModal({
               </div>
             )}
 
-              {(filterType === 'average' || filterType === 'median') && (
-                <div className="flex items-center space-x-2">
-                  <label className="block text-sm font-medium text-zinc-300 w-32">Mask size</label>
-                  <input
-                    type="range"
-                    min={3}
-                    max={15}
-                    step={2}
-                    value={maskSize}
-                    onChange={e => onMaskSizeChange(Number(e.target.value))}
-                    className="w-full ml-2 bg-zinc-700 rounded-lg appearance-none h-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                  <input
-                    type="number"
-                    min={3}
-                    max={15}
-                    step={2}
-                    value={maskSize}
-                    onChange={e => onMaskSizeChange(Number(e.target.value))}
-                    className="w-12 bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-right focus:outline-none"
-                  />
-                  <span className="text-xs text-zinc-400 w-16 text-center">{maskSize}</span>
-                </div>
+              {(filterType === 'average' || filterType === 'median' || filterType === 'gaussian') && (
+                <>
+                  {filterType === 'gaussian' && (
+                    <div className="flex items-center space-x-2 mt-2">
+                      <label className="block text-sm font-medium text-zinc-300 w-32">Sigma</label>
+                      <input
+                        type="range"
+                        min={0.1}
+                        max={5}
+                        step={0.01}
+                        value={gaussianSigma}
+                        onChange={e => onGaussianSigmaChange(Number(e.target.value))}
+                        className="w-full ml-2 bg-zinc-700 rounded-lg appearance-none h-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <input
+                        type="number"
+                        min={0.1}
+                        max={5}
+                        step={0.01}
+                        value={gaussianSigma}
+                        onChange={e => onGaussianSigmaChange(Number(e.target.value))}
+                        className="w-12 bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-right focus:outline-none"
+                      />
+                      <span className="text-xs text-zinc-400 w-16 text-center">{gaussianSigma}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center space-x-2">
+                    <label className="block text-sm font-medium text-zinc-300 w-32">Mask size</label>
+                    <input
+                      type="range"
+                      min={3}
+                      max={15}
+                      step={2}
+                      value={maskSize}
+                      onChange={e => onMaskSizeChange(Number(e.target.value))}
+                      className="w-full ml-2 bg-zinc-700 rounded-lg appearance-none h-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <input
+                      type="number"
+                      min={3}
+                      max={15}
+                      step={2}
+                      value={maskSize}
+                      onChange={e => onMaskSizeChange(Number(e.target.value))}
+                      className="w-12 bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-right focus:outline-none"
+                    />
+                    <span className="text-xs text-zinc-400 w-16 text-center">{maskSize}</span>
+                  </div>
+                </>
               )}
               {filterType === 'sobel' && (
                 <>
@@ -267,3 +300,5 @@ export default function FiltersModal({
     </div>
   );
 }
+
+export default FiltersModal;

@@ -1,3 +1,60 @@
+// 1D maska Gaussa
+function gaussianKernel1D(size: number, sigma: number): number[] {
+  const kernel = [];
+  const mean = Math.floor(size / 2);
+  let sum = 0;
+  for (let i = 0; i < size; i++) {
+    const x = i - mean;
+    const value = Math.exp(-(x * x) / (2 * sigma * sigma));
+    kernel.push(value);
+    sum += value;
+  }
+  return kernel.map(v => v / sum);
+}
+
+// Filtr Gaussa (szybka konwolucja separowalna)
+export function applyGaussianFilter(
+  src: Uint8ClampedArray,
+  width: number,
+  height: number,
+  maskSize: number = 5,
+  sigma: number = 1.0
+): Uint8ClampedArray {
+  const kernel = gaussianKernel1D(maskSize, sigma);
+  const tmp = new Uint8ClampedArray(src.length);
+  const dst = new Uint8ClampedArray(src.length);
+
+  // Konwolucja w poziomie
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      for (let c = 0; c < 3; c++) {
+        let acc = 0;
+        for (let k = 0; k < maskSize; k++) {
+          const xx = Math.min(width - 1, Math.max(0, x + k - Math.floor(maskSize / 2)));
+          acc += src[(y * width + xx) * 4 + c] * kernel[k];
+        }
+        tmp[(y * width + x) * 4 + c] = acc;
+      }
+      tmp[(y * width + x) * 4 + 3] = src[(y * width + x) * 4 + 3];
+    }
+  }
+
+  // Konwolucja w pionie
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      for (let c = 0; c < 3; c++) {
+        let acc = 0;
+        for (let k = 0; k < maskSize; k++) {
+          const yy = Math.min(height - 1, Math.max(0, y + k - Math.floor(maskSize / 2)));
+          acc += tmp[(yy * width + x) * 4 + c] * kernel[k];
+        }
+        dst[(y * width + x) * 4 + c] = acc;
+      }
+      dst[(y * width + x) * 4 + 3] = tmp[(y * width + x) * 4 + 3];
+    }
+  }
+  return dst;
+}
 // Podstawowe filtry obrazu na Uint8ClampedArray
 // Wszystkie funkcje zwracają nową tablicę (nie modyfikują wejścia)
 

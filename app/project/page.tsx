@@ -17,6 +17,7 @@ import {
   applyMedianFilter,
   applySobelFilter,
   applySharpenFilter,
+  applyGaussianFilter,
 } from '@/lib/filters';
 import { projectStorage, type Project } from '@/lib/projectStorage';
 import { CanvasManager } from '@/lib/CanvasManager';
@@ -64,12 +65,14 @@ function ProjectContent() {
   const [sobelDir, setSobelDir] = useState<'x' | 'y' | 'xy'>('xy');
   const [sobelThreshold, setSobelThreshold] = useState<number>(64);
   const [sharpenStrength, setSharpenStrength] = useState<number>(0.5);
+  const [gaussianSigma, setGaussianSigma] = useState<number>(1.0);
   const lastFilterStateRef = useRef<{
     filterType: FilterType;
     maskSize: number;
     sobelDir: 'x' | 'y' | 'xy';
     sobelThreshold: number;
     sharpenStrength: number;
+    gaussianSigma: number;
   } | null>(null);
 
   useEffect(() => {
@@ -82,12 +85,14 @@ function ProjectContent() {
         setSobelDir(img.sobelDir ?? 'xy');
         setSobelThreshold(img.sobelThreshold ?? 64);
         setSharpenStrength(img.sharpenStrength ?? 0.5);
+        setGaussianSigma(img.gaussianSigma ?? 1.0);
         lastFilterStateRef.current = {
           filterType: img.filterType || 'average',
           maskSize: img.maskSize ?? 3,
           sobelDir: img.sobelDir ?? 'xy',
           sobelThreshold: img.sobelThreshold ?? 64,
           sharpenStrength: img.sharpenStrength ?? 0.5,
+          gaussianSigma: img.gaussianSigma ?? 1.0,
         };
         setIsFiltersModalOpen(true);
       } else {
@@ -105,17 +110,19 @@ function ProjectContent() {
     if (selectedShape && selectedShape.type === 'image' && lastFilterStateRef.current && lastFilterPixelsRef.current) {
       const img = selectedShape as ImageShape;
       const last = lastFilterStateRef.current;
-      img.filterType = last.filterType;
-      img.maskSize = last.maskSize;
-      img.sobelDir = last.sobelDir;
-      img.sobelThreshold = last.sobelThreshold;
-      img.sharpenStrength = last.sharpenStrength;
-      img.setCachedPixels(lastFilterPixelsRef.current);
-      setFilterType(last.filterType);
-      setMaskSize(last.maskSize);
-      setSobelDir(last.sobelDir);
-      setSobelThreshold(last.sobelThreshold);
-      setSharpenStrength(last.sharpenStrength);
+  img.filterType = last.filterType;
+  img.maskSize = last.maskSize;
+  img.sobelDir = last.sobelDir;
+  img.sobelThreshold = last.sobelThreshold;
+  img.sharpenStrength = last.sharpenStrength;
+  img.gaussianSigma = last.gaussianSigma;
+  img.setCachedPixels(lastFilterPixelsRef.current);
+  setFilterType(last.filterType);
+  setMaskSize(last.maskSize);
+  setSobelDir(last.sobelDir);
+  setSobelThreshold(last.sobelThreshold);
+  setSharpenStrength(last.sharpenStrength);
+  setGaussianSigma(last.gaussianSigma);
       handleShapeUpdate();
     }
     setIsFiltersModalOpen(false);
@@ -136,7 +143,9 @@ function ProjectContent() {
         sobelDir,
         sobelThreshold,
         sharpenStrength,
+        gaussianSigma,
       };
+      img.gaussianSigma = gaussianSigma;
       // Nakładanie filtra na oryginalne piksele
       const src = img.getOriginalPixels();
       if (src) {
@@ -149,6 +158,8 @@ function ProjectContent() {
           filtered = applySobelFilter(src, img.width, img.height, sobelDir, sobelThreshold);
         } else if (filterType === 'sharpen') {
           filtered = applySharpenFilter(src, img.width, img.height, sharpenStrength);
+        } else if (filterType === 'gaussian') {
+          filtered = applyGaussianFilter(src, img.width, img.height, maskSize, gaussianSigma);
         } else if (filterType === 'none') {
           filtered = src;
         }
@@ -171,6 +182,7 @@ function ProjectContent() {
     if (selectedShape && selectedShape.type === 'image') {
       const img = selectedShape as ImageShape;
       img.resetToOriginal();
+      img.gaussianSigma = 1.0;
       handleShapeUpdate();
     }
   };
@@ -716,6 +728,8 @@ useEffect(() => {
         sharpenStrength={sharpenStrength}
         onSharpenStrengthChange={setSharpenStrength}
         onReset={handleFiltersModalReset}
+        gaussianSigma={gaussianSigma}
+        onGaussianSigmaChange={setGaussianSigma}
       />
     </>
   );

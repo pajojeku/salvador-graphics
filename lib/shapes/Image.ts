@@ -24,11 +24,12 @@ export class ImageShape extends Shape {
   mode: 'normal' | 'multiply' | 'grayscale' = 'normal';
   grayscaleMethod: 'average' | 'weighted' = 'average';
   // Filtry:
-  filterType: 'none' | 'average' | 'median' | 'sobel' | 'sharpen' = 'none';
+  filterType: 'none' | 'average' | 'median' | 'sobel' | 'sharpen' | 'gaussian' = 'none';
   maskSize: number = 3;
   sobelDir: 'x' | 'y' | 'xy' = 'xy';
   sobelThreshold: number = 64;
   sharpenStrength: number = 0.5;
+  gaussianSigma: number = 1.0;
   private cachedPixels: Uint8ClampedArray | null = null;
   private originalPixels: Uint8ClampedArray | null = null;
 
@@ -187,7 +188,8 @@ export class ImageShape extends Shape {
       maskSize: this.maskSize,
       sobelDir: this.sobelDir,
       sobelThreshold: this.sobelThreshold,
-      sharpenStrength: this.sharpenStrength,
+  sharpenStrength: this.sharpenStrength,
+  gaussianSigma: this.gaussianSigma,
     };
   }
 
@@ -220,7 +222,8 @@ export class ImageShape extends Shape {
     if (data.sobelDir) image.sobelDir = data.sobelDir;
     if (typeof data.sobelThreshold === 'number') image.sobelThreshold = data.sobelThreshold;
     if (typeof data.sharpenStrength === 'number') image.sharpenStrength = data.sharpenStrength;
-    // originalPixels i cachedPixels muszą być ustawione po wczytaniu obrazu z DB!
+  if (typeof data.gaussianSigma === 'number') image.gaussianSigma = data.gaussianSigma;
+  // originalPixels i cachedPixels muszą być ustawione po wczytaniu obrazu z DB!
     return image;
   }
 }
