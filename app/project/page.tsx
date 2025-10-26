@@ -10,9 +10,11 @@ import PropertiesPanel from '@/components/PropertiesPanel';
 import MobileWarning from '@/components/MobileWarning';
 import ShapeInputModal, { ShapeInputData } from '@/components/ShapeInputModal';
 import ExportJPGModal from '@/components/ExportJPGModal';
+import PointTransformationsModal from '@/components/PointTransformationsModal';
 import { projectStorage, type Project } from '@/lib/projectStorage';
 import { CanvasManager } from '@/lib/CanvasManager';
 import { Shape } from '@/lib/shapes/Shape';
+import { ImageShape } from '@/lib/shapes/Image';
 
 function ProjectContent() {
   const searchParams = useSearchParams();
@@ -31,6 +33,9 @@ function ProjectContent() {
   const [isShapeModalOpen, setIsShapeModalOpen] = useState(false);
   const [modalShapeType, setModalShapeType] = useState<'line' | 'rectangle' | 'circle' | 'rgbcube' | null>(null);
   const [isExportJPGModalOpen, setIsExportJPGModalOpen] = useState(false);
+  const [isPointModalOpen, setIsPointModalOpen] = useState(false);
+  const [pointModalValues, setPointModalValues] = useState({ brightness: 0, red: 0, green: 0, blue: 0 });
+  const originalPointModalValuesRef = useRef<{ brightness: number; red: number; green: number; blue: number } | null>(null);
 
   useEffect(() => {
     const projectId = searchParams.get('id');
@@ -325,6 +330,27 @@ function ProjectContent() {
     return () => clearInterval(interval);
   }, [canvasManagerRef.current]);
 
+  useEffect(() => {
+    function handleOpenPointModal() {
+      if (selectedShape && selectedShape.type === 'image') {
+        const img = selectedShape as ImageShape;
+        setPointModalValues({
+          brightness: img.brightness ?? 0,
+          red: img.red ?? 0,
+          green: img.green ?? 0,
+          blue: img.blue ?? 0,
+        });
+        setIsPointModalOpen(true);
+      } else {
+        alert('Please select an image first.');
+      }
+    }
+    window.addEventListener('openPointTransformationsModal', handleOpenPointModal);
+    return () => {
+      window.removeEventListener('openPointTransformationsModal', handleOpenPointModal);
+    };
+  }, [selectedShape]);
+
   if (loading) {
     return (
       <div className="h-screen bg-zinc-900 flex items-center justify-center">
@@ -385,6 +411,44 @@ function ProjectContent() {
       </div>
     );
   }
+
+  // Only update modal state, do not touch shape until Apply
+  const handlePointModalChange = (vals: { brightness: number; red: number; green: number; blue: number }) => {
+    setPointModalValues(vals);
+  };
+
+  // Apply: copy modal values to shape and save
+  const handlePointModalApply = () => {
+    if (selectedShape && selectedShape.type === 'image') {
+      const img = selectedShape as ImageShape;
+      img.brightness = pointModalValues.brightness;
+      img.red = pointModalValues.red;
+      img.green = pointModalValues.green;
+      img.blue = pointModalValues.blue;
+      canvasRefreshRef.current?.();
+    }
+    if (canvasManagerRef.current && currentProject) {
+      const canvasData = canvasManagerRef.current.serialize();
+      projectStorage.saveCanvasData(currentProject.id, canvasData);
+      projectStorage.update(currentProject.id, { lastModified: new Date().toISOString() });
+    }
+    setIsPointModalOpen(false);
+  };
+
+  // Cancel: revert to original values in shape and modal
+  const handlePointModalCancel = () => {
+    if (selectedShape && selectedShape.type === 'image' && originalPointModalValuesRef.current) {
+      const img = selectedShape as ImageShape;
+      const orig = originalPointModalValuesRef.current;
+      img.brightness = orig.brightness;
+      img.red = orig.red;
+      img.green = orig.green;
+      img.blue = orig.blue;
+      setPointModalValues({ ...orig });
+      canvasRefreshRef.current?.();
+    }
+    setIsPointModalOpen(false);
+  };
 
   return (
     <>
@@ -456,6 +520,20 @@ function ProjectContent() {
         onClose={() => setIsExportJPGModalOpen(false)}
         onExport={handleExportJPG}
         projectName={currentProject?.name}
+      />
+
+      {/* Point Transformations Modal */}
+      <PointTransformationsModal
+        isOpen={isPointModalOpen}
+        onClose={handlePointModalCancel}
+        brightness={pointModalValues.brightness}
+        red={pointModalValues.red}
+        green={pointModalValues.green}
+        blue={pointModalValues.blue}
+        onChange={handlePointModalChange}
+        onApply={handlePointModalApply}
+        onCancel={handlePointModalCancel}
+        imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}
       />
     </>
   );

@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import PointTransformationsModal from './PointTransformationsModal';
 
 interface HeaderProps {
   projectName?: string;
@@ -14,7 +13,6 @@ interface HeaderProps {
 
 export default function Header({ projectName, onExportPNG, onExportJPG, onSaveProject, onLoadProject }: HeaderProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const [isPointTransformationsOpen, setPointTransformationsOpen] = useState(false);
 
   const menuItems = [
     { name: 'Salvador', icon: 'ri-home-line', isHome: true, logo: '/icon.png' },
@@ -43,7 +41,10 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
   };
 
   const handlePointTransformations = () => {
-    setPointTransformationsOpen(true);
+    if (typeof window !== 'undefined') {
+      const event = new CustomEvent('openPointTransformationsModal');
+      window.dispatchEvent(event);
+    }
     setActiveMenu(null);
   };
 
@@ -143,11 +144,7 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
         </div>
       </div>
 
-      <PointTransformationsModal
-        isOpen={isPointTransformationsOpen}
-        onClose={() => setPointTransformationsOpen(false)}
-        onApply={(values) => console.log('Applied values:', values)}
-      />
+  {/* PointTransformationsModal is managed in the main page, not here */}
     </div>
   );
 }

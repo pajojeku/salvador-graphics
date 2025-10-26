@@ -9,12 +9,17 @@ export interface ImageData extends ShapeData {
   height: number;
 }
 
+
 export class ImageShape extends Shape {
   imageId: string;
   x: number;
   y: number;
   width: number;
   height: number;
+  brightness: number = 0;
+  red: number = 0;
+  green: number = 0;
+  blue: number = 0;
   private cachedPixels: Uint8ClampedArray | null = null;
 
   constructor(imageId: string, x: number, y: number, width: number, height: number) {
@@ -42,16 +47,26 @@ export class ImageShape extends Shape {
       for (let dx = 0; dx < srcWidth; dx++) {
         const targetX = Math.floor(this.x + dx);
         const targetY = Math.floor(this.y + dy);
-
         if (targetX < 0 || targetX >= dstWidth || targetY < 0 || targetY >= dstHeight) continue;
-
         const srcIdx = (dy * srcWidth + dx) * 4;
         const dstIdx = (targetY * dstWidth + targetX) * 4;
-
-        imageData.data[dstIdx] = this.cachedPixels[srcIdx];
-        imageData.data[dstIdx + 1] = this.cachedPixels[srcIdx + 1];
-        imageData.data[dstIdx + 2] = this.cachedPixels[srcIdx + 2];
-        imageData.data[dstIdx + 3] = this.cachedPixels[srcIdx + 3];
+        let r = this.cachedPixels[srcIdx];
+        let g = this.cachedPixels[srcIdx + 1];
+        let b = this.cachedPixels[srcIdx + 2];
+        let a = this.cachedPixels[srcIdx + 3];
+        // Apply color transformations
+        r = Math.max(0, Math.min(255, r + Math.round((this.red / 100) * 255)));
+        g = Math.max(0, Math.min(255, g + Math.round((this.green / 100) * 255)));
+        b = Math.max(0, Math.min(255, b + Math.round((this.blue / 100) * 255)));
+        if (this.brightness !== 0) {
+          r = Math.max(0, Math.min(255, r + Math.round((this.brightness / 100) * 255)));
+          g = Math.max(0, Math.min(255, g + Math.round((this.brightness / 100) * 255)));
+          b = Math.max(0, Math.min(255, b + Math.round((this.brightness / 100) * 255)));
+        }
+        imageData.data[dstIdx] = r;
+        imageData.data[dstIdx + 1] = g;
+        imageData.data[dstIdx + 2] = b;
+        imageData.data[dstIdx + 3] = a;
       }
     }
   }
@@ -114,6 +129,10 @@ export class ImageShape extends Shape {
       height: this.height,
       selected: this.selected,
       visible: this.visible,
+      brightness: this.brightness,
+      red: this.red,
+      green: this.green,
+      blue: this.blue,
     };
   }
 
@@ -126,10 +145,14 @@ export class ImageShape extends Shape {
   }
 
   static deserialize(data: any): ImageShape {
-    const image = new ImageShape(data.imageId, data.x, data.y, data.width, data.height);
-    image.id = data.id;
-    image.selected = data.selected;
-    image.visible = data.visible;
-    return image;
+  const image = new ImageShape(data.imageId, data.x, data.y, data.width, data.height);
+  image.id = data.id;
+  image.selected = data.selected;
+  image.visible = data.visible;
+  image.brightness = typeof data.brightness === 'number' ? data.brightness : 0;
+  image.red = typeof data.red === 'number' ? data.red : 0;
+  image.green = typeof data.green === 'number' ? data.green : 0;
+  image.blue = typeof data.blue === 'number' ? data.blue : 0;
+  return image;
   }
 }
