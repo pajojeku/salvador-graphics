@@ -11,6 +11,7 @@ import MobileWarning from '@/components/MobileWarning';
 import ShapeInputModal, { ShapeInputData } from '@/components/ShapeInputModal';
 import ExportJPGModal from '@/components/ExportJPGModal';
 import PointTransformationsModal from '@/components/PointTransformationsModal';
+import FiltersModal from '@/components/FiltersModal';
 import { projectStorage, type Project } from '@/lib/projectStorage';
 import { CanvasManager } from '@/lib/CanvasManager';
 import { Shape } from '@/lib/shapes/Shape';
@@ -38,6 +39,25 @@ function ProjectContent() {
   const [pointModalMode, setPointModalMode] = useState<'normal' | 'multiply' | 'grayscale'>('normal');
   const [pointModalGrayscaleMethod, setPointModalGrayscaleMethod] = useState<'average' | 'weighted'>('average');
   const originalPointModalValuesRef = useRef<{ brightness: number; red: number; green: number; blue: number } | null>(null);
+  const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
+
+  useEffect(() => {
+    function handleOpenFiltersModal() {
+      if (selectedShape && selectedShape.type === 'image') {
+        setIsFiltersModalOpen(true);
+      } else {
+        alert('Please select an image first.');
+      }
+    }
+    window.addEventListener('openFiltersModal', handleOpenFiltersModal);
+    return () => {
+      window.removeEventListener('openFiltersModal', handleOpenFiltersModal);
+    };
+  }, [selectedShape]);
+
+  const handleFiltersModalCancel = () => {
+    setIsFiltersModalOpen(false);
+  };
 
   useEffect(() => {
     const projectId = searchParams.get('id');
@@ -550,6 +570,13 @@ function ProjectContent() {
         onGrayscaleMethodChange={handlePointModalGrayscaleMethodChange}
         onApply={handlePointModalApply}
         onCancel={handlePointModalCancel}
+        imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}
+      />
+      {/* Filters Modal */}
+      <FiltersModal
+        isOpen={isFiltersModalOpen}
+        onClose={handleFiltersModalCancel}
+        onCancel={handleFiltersModalCancel}
         imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}
       />
     </>
