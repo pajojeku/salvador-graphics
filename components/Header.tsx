@@ -17,7 +17,7 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
   const menuItems = [
     { name: 'Salvador', icon: 'ri-home-line', isHome: true, logo: '/icon.png' },
     { name: 'File', hasDropdown: true },
-    { name: 'Edit', hasDropdown: true },
+    { name: 'Image', hasDropdown: true },
   ];
 
   const handleExportPNG = () => {
@@ -112,11 +112,11 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
                     </div>
                   )}
 
-                  {/* Dropdown menu for Edit */}
-                  {item.name === 'Edit' && activeMenu === 'Edit' && (
+                  {/* Dropdown menu for Image */}
+                  {item.name === 'Image' && activeMenu === 'Image' && (
                     <div 
                       className="absolute left-0 top-full mt-1 bg-zinc-800 border border-zinc-700 rounded shadow-lg py-1 min-w-[180px] z-50"
-                      onMouseEnter={() => setActiveMenu('Edit')}
+                      onMouseEnter={() => setActiveMenu('Image')}
                       onMouseLeave={() => setActiveMenu(null)}
                     >
                       <button
