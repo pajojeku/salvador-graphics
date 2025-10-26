@@ -1,6 +1,16 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import {
+  applyAverageFilter,
+  applyMedianFilter,
+  applySobelFilter,
+  applySharpenFilter,
+} from '@/lib/filters';
 import { ImageShape } from '@/lib/shapes/Image';
 
+
+
+export type FilterType = 'none' | 'average' | 'median' | 'sobel' | 'sharpen';
+export type SobelDir = 'x' | 'y' | 'xy';
 
 interface FiltersModalProps {
   isOpen: boolean;
@@ -8,15 +18,39 @@ interface FiltersModalProps {
   onApply?: () => void;
   onCancel?: () => void;
   imageShape?: ImageShape | null;
+  filterType: FilterType;
+  onFilterTypeChange: (type: FilterType) => void;
+  maskSize: number;
+  onMaskSizeChange: (v: number) => void;
+  sobelDir: SobelDir;
+  onSobelDirChange: (v: SobelDir) => void;
+  sobelThreshold: number;
+  onSobelThresholdChange: (v: number) => void;
+  sharpenStrength: number;
+  onSharpenStrengthChange: (v: number) => void;
+  onReset: () => void;
 }
 
-export default function FiltersModal({ isOpen, onClose, onApply, onCancel, imageShape }: FiltersModalProps) {
-  const [filterType, setFilterType] = useState('average');
-  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
-    setFilterType('average');
-  }, [isOpen]);
+export default function FiltersModal({
+  isOpen,
+  onClose,
+  onApply,
+  onCancel,
+  imageShape,
+  filterType,
+  onFilterTypeChange,
+  maskSize,
+  onMaskSizeChange,
+  sobelDir,
+  onSobelDirChange,
+  sobelThreshold,
+  onSobelThresholdChange,
+  sharpenStrength,
+  onSharpenStrengthChange,
+  onReset
+}: FiltersModalProps) {
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Draw preview (just original for now)
   useEffect(() => {
@@ -28,12 +62,24 @@ export default function FiltersModal({ isOpen, onClose, onApply, onCancel, image
     const height = imageShape.height;
     const src = (imageShape as any).cachedPixels as Uint8ClampedArray;
     if (!src) return;
+    let filtered: Uint8ClampedArray = src;
+    if (filterType === 'average') {
+      filtered = applyAverageFilter(src, width, height, maskSize);
+    } else if (filterType === 'median') {
+      filtered = applyMedianFilter(src, width, height, maskSize);
+    } else if (filterType === 'sobel') {
+      filtered = applySobelFilter(src, width, height, sobelDir, sobelThreshold);
+    } else if (filterType === 'sharpen') {
+      filtered = applySharpenFilter(src, width, height, sharpenStrength);
+    } else if (filterType === 'none') {
+      filtered = (imageShape as any).originalPixels ? (imageShape as any).originalPixels : src;
+    }
     const previewImageData = ctx.createImageData(width, height);
-    for (let i = 0; i < src.length; i++) {
-      previewImageData.data[i] = src[i];
+    for (let i = 0; i < filtered.length; i++) {
+      previewImageData.data[i] = filtered[i];
     }
     ctx.putImageData(previewImageData, 0, 0);
-  }, [imageShape, isOpen, filterType]);
+  }, [imageShape, isOpen, filterType, maskSize, sobelDir, sobelThreshold, sharpenStrength]);
 
   if (!isOpen) return null;
 
@@ -54,8 +100,9 @@ export default function FiltersModal({ isOpen, onClose, onApply, onCancel, image
     }
   };
 
+
   const handleReset = () => {
-    setFilterType('average');
+    onReset();
   };
 
   return (
@@ -72,30 +119,33 @@ export default function FiltersModal({ isOpen, onClose, onApply, onCancel, image
             </button>
           </div>
           <div className="p-6 space-y-6">
-            <div className="flex items-center mb-4 justify-between">
-              <div className="flex items-center">
-                <label className="block text-sm font-medium text-zinc-300 mr-2">Filter type:</label>
-                <select
-                  value={filterType}
-                  onChange={e => setFilterType(e.target.value)}
-                  className="bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-sm focus:outline-none border border-zinc-600 h-8"
-                  style={{ minWidth: 180 }}
+            <div className="flex flex-col gap-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <label className="block text-sm font-medium text-zinc-300 mr-2">Filter type:</label>
+                  <select
+                    value={filterType}
+                    onChange={e => onFilterTypeChange(e.target.value as FilterType)}
+                    className="bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-sm focus:outline-none border border-zinc-600 h-8"
+                    style={{ minWidth: 180 }}
+                  >
+                    <option value="none">None</option>
+                    <option value="average">Smoothing (averaging)</option>
+                    <option value="median">Median</option>
+                    <option value="sobel">Sobel edge detection</option>
+                    <option value="sharpen">High-pass sharpening</option>
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 px-2 h-8 bg-zinc-700 text-zinc-100 rounded border border-zinc-600 hover:bg-zinc-600 transition-colors text-sm font-normal"
+                  onClick={handleReset}
+                  title="Reset filter params"
                 >
-                  <option value="average">Smoothing (averaging)</option>
-                  <option value="median">Median</option>
-                  <option value="sobel">Sobel edge detection</option>
-                  <option value="sharpen">High-pass sharpening</option>
-                </select>
+                  <i className="ri-refresh-line"></i>
+                  Reset
+                </button>
               </div>
-              <button
-                type="button"
-                className="flex items-center gap-1 px-2 h-8 bg-zinc-700 text-zinc-100 rounded border border-zinc-600 hover:bg-zinc-600 transition-colors text-sm font-normal"
-                onClick={handleReset}
-                title="Reset filter type"
-              >
-                <i className="ri-refresh-line"></i>
-                Reset
-              </button>
             </div>
             {imageShape && (imageShape as any).cachedPixels && (
               <div className="flex flex-col items-center mb-4">
@@ -114,6 +164,87 @@ export default function FiltersModal({ isOpen, onClose, onApply, onCancel, image
                 <div className="text-xs text-zinc-400 mb-1">Image preview</div>
               </div>
             )}
+
+              {(filterType === 'average' || filterType === 'median') && (
+                <div className="flex items-center space-x-2">
+                  <label className="block text-sm font-medium text-zinc-300 w-32">Mask size</label>
+                  <input
+                    type="range"
+                    min={3}
+                    max={15}
+                    step={2}
+                    value={maskSize}
+                    onChange={e => onMaskSizeChange(Number(e.target.value))}
+                    className="w-full ml-2 bg-zinc-700 rounded-lg appearance-none h-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <input
+                    type="number"
+                    min={3}
+                    max={15}
+                    step={2}
+                    value={maskSize}
+                    onChange={e => onMaskSizeChange(Number(e.target.value))}
+                    className="w-12 bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-right focus:outline-none"
+                  />
+                  <span className="text-xs text-zinc-400 w-16 text-center">{maskSize}</span>
+                </div>
+              )}
+              {filterType === 'sobel' && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-zinc-300">Direction:</label>
+                    <select value={sobelDir} onChange={e => onSobelDirChange(e.target.value as SobelDir)} className="bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-sm border border-zinc-600">
+                      <option value="x">X</option>
+                      <option value="y">Y</option>
+                      <option value="xy">XY</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <label className="block text-sm font-medium text-zinc-300 w-32">Threshold</label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={255}
+                      value={sobelThreshold}
+                      onChange={e => onSobelThresholdChange(Number(e.target.value))}
+                      className="w-full ml-2 bg-zinc-700 rounded-lg appearance-none h-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={255}
+                      value={sobelThreshold}
+                      onChange={e => onSobelThresholdChange(Number(e.target.value))}
+                      className="w-12 bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-right focus:outline-none"
+                    />
+                    <span className="text-xs text-zinc-400 w-16 text-center">{sobelThreshold}</span>
+                  </div>
+                </>
+              )}
+              {filterType === 'sharpen' && (
+                <div className="flex items-center space-x-2">
+                  <label className="block text-sm font-medium text-zinc-300 w-32">Strength</label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={2}
+                    step={0.01}
+                    value={sharpenStrength}
+                    onChange={e => onSharpenStrengthChange(Number(e.target.value))}
+                    className="w-full ml-2 bg-zinc-700 rounded-lg appearance-none h-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    max={2}
+                    step={0.01}
+                    value={sharpenStrength}
+                    onChange={e => onSharpenStrengthChange(Number(e.target.value))}
+                    className="w-12 bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-right focus:outline-none"
+                  />
+                  <span className="text-xs text-zinc-400 w-16 text-center">{sharpenStrength}</span>
+                </div>
+              )}
           </div>
           <div className="flex justify-end space-x-3 p-4 border-t border-zinc-700 bg-zinc-900/30">
             <button

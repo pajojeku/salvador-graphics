@@ -11,7 +11,13 @@ import MobileWarning from '@/components/MobileWarning';
 import ShapeInputModal, { ShapeInputData } from '@/components/ShapeInputModal';
 import ExportJPGModal from '@/components/ExportJPGModal';
 import PointTransformationsModal from '@/components/PointTransformationsModal';
-import FiltersModal from '@/components/FiltersModal';
+import FiltersModal, { FilterType } from '@/components/FiltersModal';
+import {
+  applyAverageFilter,
+  applyMedianFilter,
+  applySobelFilter,
+  applySharpenFilter,
+} from '@/lib/filters';
 import { projectStorage, type Project } from '@/lib/projectStorage';
 import { CanvasManager } from '@/lib/CanvasManager';
 import { Shape } from '@/lib/shapes/Shape';
@@ -40,10 +46,49 @@ function ProjectContent() {
   const [pointModalGrayscaleMethod, setPointModalGrayscaleMethod] = useState<'average' | 'weighted'>('average');
   const originalPointModalValuesRef = useRef<{ brightness: number; red: number; green: number; blue: number } | null>(null);
   const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
+  // Stan filtrów dla modala (kontrolowany)
+  const [filterType, setFilterType] = useState<FilterType>('none');
+
+  // Po zmianie typu filtra natychmiast resetuj cachedPixels do oryginału (preview i obraz główny)
+  useEffect(() => {
+    if (!isFiltersModalOpen) return;
+    if (selectedShape && selectedShape.type === 'image') {
+      const img = selectedShape as ImageShape;
+      // Przy każdej zmianie typu filtra resetuj cachedPixels do oryginału
+      img.resetToOriginal();
+      handleShapeUpdate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterType]);
+  const [maskSize, setMaskSize] = useState<number>(3);
+  const [sobelDir, setSobelDir] = useState<'x' | 'y' | 'xy'>('xy');
+  const [sobelThreshold, setSobelThreshold] = useState<number>(64);
+  const [sharpenStrength, setSharpenStrength] = useState<number>(0.5);
+  const lastFilterStateRef = useRef<{
+    filterType: FilterType;
+    maskSize: number;
+    sobelDir: 'x' | 'y' | 'xy';
+    sobelThreshold: number;
+    sharpenStrength: number;
+  } | null>(null);
 
   useEffect(() => {
     function handleOpenFiltersModal() {
       if (selectedShape && selectedShape.type === 'image') {
+        // Ustaw stan filtrów na podstawie wybranego obrazu
+        const img = selectedShape as ImageShape;
+        setFilterType(img.filterType || 'average');
+        setMaskSize(img.maskSize ?? 3);
+        setSobelDir(img.sobelDir ?? 'xy');
+        setSobelThreshold(img.sobelThreshold ?? 64);
+        setSharpenStrength(img.sharpenStrength ?? 0.5);
+        lastFilterStateRef.current = {
+          filterType: img.filterType || 'average',
+          maskSize: img.maskSize ?? 3,
+          sobelDir: img.sobelDir ?? 'xy',
+          sobelThreshold: img.sobelThreshold ?? 64,
+          sharpenStrength: img.sharpenStrength ?? 0.5,
+        };
         setIsFiltersModalOpen(true);
       } else {
         alert('Please select an image first.');
@@ -56,8 +101,89 @@ function ProjectContent() {
   }, [selectedShape]);
 
   const handleFiltersModalCancel = () => {
+    // Przywróć stan filtrów i cachedPixels do stanu sprzed otwarcia modala
+    if (selectedShape && selectedShape.type === 'image' && lastFilterStateRef.current && lastFilterPixelsRef.current) {
+      const img = selectedShape as ImageShape;
+      const last = lastFilterStateRef.current;
+      img.filterType = last.filterType;
+      img.maskSize = last.maskSize;
+      img.sobelDir = last.sobelDir;
+      img.sobelThreshold = last.sobelThreshold;
+      img.sharpenStrength = last.sharpenStrength;
+      img.setCachedPixels(lastFilterPixelsRef.current);
+      setFilterType(last.filterType);
+      setMaskSize(last.maskSize);
+      setSobelDir(last.sobelDir);
+      setSobelThreshold(last.sobelThreshold);
+      setSharpenStrength(last.sharpenStrength);
+      handleShapeUpdate();
+    }
     setIsFiltersModalOpen(false);
   };
+
+  const handleFiltersModalApply = () => {
+    // Zapisz stan filtrów do ImageShape i nałóż filtr na oryginalne piksele
+    if (selectedShape && selectedShape.type === 'image') {
+      const img = selectedShape as ImageShape;
+      img.filterType = filterType;
+      img.maskSize = maskSize;
+      img.sobelDir = sobelDir;
+      img.sobelThreshold = sobelThreshold;
+      img.sharpenStrength = sharpenStrength;
+      lastFilterStateRef.current = {
+        filterType,
+        maskSize,
+        sobelDir,
+        sobelThreshold,
+        sharpenStrength,
+      };
+      // Nakładanie filtra na oryginalne piksele
+      const src = img.getOriginalPixels();
+      if (src) {
+        let filtered = src;
+        if (filterType === 'average') {
+          filtered = applyAverageFilter(src, img.width, img.height, maskSize);
+        } else if (filterType === 'median') {
+          filtered = applyMedianFilter(src, img.width, img.height, maskSize);
+        } else if (filterType === 'sobel') {
+          filtered = applySobelFilter(src, img.width, img.height, sobelDir, sobelThreshold);
+        } else if (filterType === 'sharpen') {
+          filtered = applySharpenFilter(src, img.width, img.height, sharpenStrength);
+        } else if (filterType === 'none') {
+          filtered = src;
+        }
+        img.setCachedPixels(filtered);
+      }
+      // Zapisz nowy stan cachedPixels do refa na potrzeby Cancel
+      lastFilterPixelsRef.current = img.getCachedPixels();
+      handleShapeUpdate();
+    }
+    setIsFiltersModalOpen(false);
+  };
+
+  const handleFiltersModalReset = () => {
+    // Resetuj parametry i cachedPixels do oryginału, domyślnie brak filtra
+    setFilterType('none');
+    setMaskSize(3);
+    setSobelDir('xy');
+    setSobelThreshold(64);
+    setSharpenStrength(0.5);
+    if (selectedShape && selectedShape.type === 'image') {
+      const img = selectedShape as ImageShape;
+      img.resetToOriginal();
+      handleShapeUpdate();
+    }
+  };
+// Ref do przechowywania cachedPixels sprzed otwarcia modala (do Cancel)
+const lastFilterPixelsRef = useRef<Uint8ClampedArray | null>(null);
+
+// W momencie otwarcia modala zapisz cachedPixels do refa
+useEffect(() => {
+  if (isFiltersModalOpen && selectedShape && selectedShape.type === 'image') {
+    const img = selectedShape as ImageShape;
+    lastFilterPixelsRef.current = img.getCachedPixels() ? new Uint8ClampedArray(img.getCachedPixels()!) : null;
+  }
+}, [isFiltersModalOpen, selectedShape]);
 
   useEffect(() => {
     const projectId = searchParams.get('id');
@@ -577,7 +703,19 @@ function ProjectContent() {
         isOpen={isFiltersModalOpen}
         onClose={handleFiltersModalCancel}
         onCancel={handleFiltersModalCancel}
+        onApply={handleFiltersModalApply}
         imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}
+        filterType={filterType}
+        onFilterTypeChange={setFilterType}
+        maskSize={maskSize}
+        onMaskSizeChange={setMaskSize}
+        sobelDir={sobelDir}
+        onSobelDirChange={setSobelDir}
+        sobelThreshold={sobelThreshold}
+        onSobelThresholdChange={setSobelThreshold}
+        sharpenStrength={sharpenStrength}
+        onSharpenStrengthChange={setSharpenStrength}
+        onReset={handleFiltersModalReset}
       />
     </>
   );

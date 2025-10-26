@@ -1,3 +1,4 @@
+// Usunięto błędny fragment getCachedPixels spoza klasy
 import { Shape, Point, Color, ShapeData } from './Shape';
 
 export interface ImageData extends ShapeData {
@@ -8,6 +9,7 @@ export interface ImageData extends ShapeData {
   width: number;
   height: number;
 }
+
 
 export class ImageShape extends Shape {
   imageId: string;
@@ -21,7 +23,14 @@ export class ImageShape extends Shape {
   blue: number = 0;
   mode: 'normal' | 'multiply' | 'grayscale' = 'normal';
   grayscaleMethod: 'average' | 'weighted' = 'average';
+  // Filtry:
+  filterType: 'none' | 'average' | 'median' | 'sobel' | 'sharpen' = 'none';
+  maskSize: number = 3;
+  sobelDir: 'x' | 'y' | 'xy' = 'xy';
+  sobelThreshold: number = 64;
+  sharpenStrength: number = 0.5;
   private cachedPixels: Uint8ClampedArray | null = null;
+  private originalPixels: Uint8ClampedArray | null = null;
 
   constructor(imageId: string, x: number, y: number, width: number, height: number) {
     super('image', { r: 0, g: 0, b: 0, a: 255 });
@@ -32,8 +41,29 @@ export class ImageShape extends Shape {
     this.height = height;
   }
 
+
+
+  setOriginalPixels(pixels: Uint8ClampedArray) {
+    this.originalPixels = new Uint8ClampedArray(pixels);
+    this.cachedPixels = new Uint8ClampedArray(pixels);
+  }
+
+  getOriginalPixels(): Uint8ClampedArray | null {
+    return this.originalPixels;
+  }
+
   setCachedPixels(pixels: Uint8ClampedArray) {
-    this.cachedPixels = pixels;
+    this.cachedPixels = new Uint8ClampedArray(pixels);
+  }
+
+  getCachedPixels(): Uint8ClampedArray | null {
+    return this.cachedPixels;
+  }
+
+  resetToOriginal() {
+    if (this.originalPixels) {
+      this.cachedPixels = new Uint8ClampedArray(this.originalPixels);
+    }
   }
 
   draw(imageData: globalThis.ImageData): void {
@@ -153,6 +183,11 @@ export class ImageShape extends Shape {
       blue: this.blue,
       mode: this.mode,
       grayscaleMethod: this.grayscaleMethod,
+      filterType: this.filterType,
+      maskSize: this.maskSize,
+      sobelDir: this.sobelDir,
+      sobelThreshold: this.sobelThreshold,
+      sharpenStrength: this.sharpenStrength,
     };
   }
 
@@ -179,6 +214,13 @@ export class ImageShape extends Shape {
       image.mode = 'normal';
     }
     image.grayscaleMethod = data.grayscaleMethod === 'weighted' ? 'weighted' : 'average';
+    // Filtry:
+  if (data.filterType) image.filterType = data.filterType;
+    if (typeof data.maskSize === 'number') image.maskSize = data.maskSize;
+    if (data.sobelDir) image.sobelDir = data.sobelDir;
+    if (typeof data.sobelThreshold === 'number') image.sobelThreshold = data.sobelThreshold;
+    if (typeof data.sharpenStrength === 'number') image.sharpenStrength = data.sharpenStrength;
+    // originalPixels i cachedPixels muszą być ustawione po wczytaniu obrazu z DB!
     return image;
   }
 }

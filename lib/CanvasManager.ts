@@ -344,7 +344,20 @@ export class CanvasManager {
             if (imageRecord) {
               const pixels = new Uint8ClampedArray(imageRecord.data);
               console.log('Setting pixels, length:', pixels.length);
-              shape.setCachedPixels(pixels);
+              shape.setOriginalPixels(pixels);
+              // Automatycznie nałóż filtr zgodnie z parametrami z projektu
+              let filtered = pixels;
+              const { filterType, maskSize, sobelDir, sobelThreshold, sharpenStrength } = shape;
+              if (filterType === 'average') {
+                filtered = require('@/lib/filters').applyAverageFilter(pixels, shape.width, shape.height, maskSize ?? 3);
+              } else if (filterType === 'median') {
+                filtered = require('@/lib/filters').applyMedianFilter(pixels, shape.width, shape.height, maskSize ?? 3);
+              } else if (filterType === 'sobel') {
+                filtered = require('@/lib/filters').applySobelFilter(pixels, shape.width, shape.height, sobelDir ?? 'xy', sobelThreshold ?? 64);
+              } else if (filterType === 'sharpen') {
+                filtered = require('@/lib/filters').applySharpenFilter(pixels, shape.width, shape.height, sharpenStrength ?? 0.5);
+              }
+              shape.setCachedPixels(filtered);
             } else {
               console.error('Image not found in DB:', shapeData.imageId);
             }
