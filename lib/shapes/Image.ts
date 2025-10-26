@@ -9,7 +9,6 @@ export interface ImageData extends ShapeData {
   height: number;
 }
 
-
 export class ImageShape extends Shape {
   imageId: string;
   x: number;
@@ -20,6 +19,7 @@ export class ImageShape extends Shape {
   red: number = 0;
   green: number = 0;
   blue: number = 0;
+  mode: 'normal' | 'multiply' = 'normal';
   private cachedPixels: Uint8ClampedArray | null = null;
 
   constructor(imageId: string, x: number, y: number, width: number, height: number) {
@@ -54,14 +54,24 @@ export class ImageShape extends Shape {
         let g = this.cachedPixels[srcIdx + 1];
         let b = this.cachedPixels[srcIdx + 2];
         let a = this.cachedPixels[srcIdx + 3];
-        // Apply color transformations
-        r = Math.max(0, Math.min(255, r + Math.round((this.red / 100) * 255)));
-        g = Math.max(0, Math.min(255, g + Math.round((this.green / 100) * 255)));
-        b = Math.max(0, Math.min(255, b + Math.round((this.blue / 100) * 255)));
-        if (this.brightness !== 0) {
-          r = Math.max(0, Math.min(255, r + Math.round((this.brightness / 100) * 255)));
-          g = Math.max(0, Math.min(255, g + Math.round((this.brightness / 100) * 255)));
-          b = Math.max(0, Math.min(255, b + Math.round((this.brightness / 100) * 255)));
+        if (this.mode === 'normal') {
+          r = Math.max(0, Math.min(255, r + Math.round((this.red / 100) * 255)));
+          g = Math.max(0, Math.min(255, g + Math.round((this.green / 100) * 255)));
+          b = Math.max(0, Math.min(255, b + Math.round((this.blue / 100) * 255)));
+          if (this.brightness !== 0) {
+            r = Math.max(0, Math.min(255, r + Math.round((this.brightness / 100) * 255)));
+            g = Math.max(0, Math.min(255, g + Math.round((this.brightness / 100) * 255)));
+            b = Math.max(0, Math.min(255, b + Math.round((this.brightness / 100) * 255)));
+          }
+        } else if (this.mode === 'multiply') {
+          // Each channel is multiplied by its slider value (0.1–5), brightness is also a multiplier
+          let rMult = this.red || 1;
+          let gMult = this.green || 1;
+          let bMult = this.blue || 1;
+          let brightMult = this.brightness || 1;
+          r = Math.max(0, Math.min(255, r * rMult * brightMult));
+          g = Math.max(0, Math.min(255, g * gMult * brightMult));
+          b = Math.max(0, Math.min(255, b * bMult * brightMult));
         }
         imageData.data[dstIdx] = r;
         imageData.data[dstIdx + 1] = g;
@@ -133,6 +143,7 @@ export class ImageShape extends Shape {
       red: this.red,
       green: this.green,
       blue: this.blue,
+      mode: this.mode,
     };
   }
 
@@ -145,14 +156,15 @@ export class ImageShape extends Shape {
   }
 
   static deserialize(data: any): ImageShape {
-  const image = new ImageShape(data.imageId, data.x, data.y, data.width, data.height);
-  image.id = data.id;
-  image.selected = data.selected;
-  image.visible = data.visible;
-  image.brightness = typeof data.brightness === 'number' ? data.brightness : 0;
-  image.red = typeof data.red === 'number' ? data.red : 0;
-  image.green = typeof data.green === 'number' ? data.green : 0;
-  image.blue = typeof data.blue === 'number' ? data.blue : 0;
-  return image;
+    const image = new ImageShape(data.imageId, data.x, data.y, data.width, data.height);
+    image.id = data.id;
+    image.selected = data.selected;
+    image.visible = data.visible;
+    image.brightness = typeof data.brightness === 'number' ? data.brightness : 0;
+    image.red = typeof data.red === 'number' ? data.red : 0;
+    image.green = typeof data.green === 'number' ? data.green : 0;
+    image.blue = typeof data.blue === 'number' ? data.blue : 0;
+    image.mode = data.mode === 'multiply' ? 'multiply' : 'normal';
+    return image;
   }
 }

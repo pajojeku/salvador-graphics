@@ -8,17 +8,22 @@ interface PointTransformationsModalProps {
   red: number;
   green: number;
   blue: number;
+  mode: 'normal' | 'multiply';
   onChange: (values: { brightness: number; red: number; green: number; blue: number }) => void;
+  onModeChange: (mode: 'normal' | 'multiply') => void;
   onApply?: () => void;
   onCancel?: () => void;
   imageShape?: ImageShape | null;
 }
 
-export default function PointTransformationsModal({ isOpen, onClose, brightness: initialBrightness, red: initialRed, green: initialGreen, blue: initialBlue, onChange, onApply, onCancel, imageShape }: PointTransformationsModalProps) {
+type Mode = 'normal' | 'multiply';
+
+export default function PointTransformationsModal({ isOpen, onClose, brightness: initialBrightness, red: initialRed, green: initialGreen, blue: initialBlue, mode: initialMode, onChange, onModeChange, onApply, onCancel, imageShape }: PointTransformationsModalProps) {
   const [brightness, setBrightness] = useState(initialBrightness);
   const [red, setRed] = useState(initialRed);
   const [green, setGreen] = useState(initialGreen);
   const [blue, setBlue] = useState(initialBlue);
+  const [mode, setMode] = useState<Mode>(initialMode);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -27,6 +32,10 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
     setGreen(initialGreen);
     setBlue(initialBlue);
   }, [initialBrightness, initialRed, initialGreen, initialBlue, isOpen]);
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode, isOpen]);
 
   useEffect(() => {
     if (!imageShape || !previewCanvasRef.current || !(imageShape as any).cachedPixels) return;
@@ -43,13 +52,24 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
       let g = src[i + 1];
       let b = src[i + 2];
       let a = src[i + 3];
-      r = Math.max(0, Math.min(255, r + Math.round((red / 100) * 255)));
-      g = Math.max(0, Math.min(255, g + Math.round((green / 100) * 255)));
-      b = Math.max(0, Math.min(255, b + Math.round((blue / 100) * 255)));
-      if (brightness !== 0) {
-        r = Math.max(0, Math.min(255, r + Math.round((brightness / 100) * 255)));
-        g = Math.max(0, Math.min(255, g + Math.round((brightness / 100) * 255)));
-        b = Math.max(0, Math.min(255, b + Math.round((brightness / 100) * 255)));
+      if (mode === 'normal') {
+        r = Math.max(0, Math.min(255, r + Math.round((red / 100) * 255)));
+        g = Math.max(0, Math.min(255, g + Math.round((green / 100) * 255)));
+        b = Math.max(0, Math.min(255, b + Math.round((blue / 100) * 255)));
+        if (brightness !== 0) {
+          r = Math.max(0, Math.min(255, r + Math.round((brightness / 100) * 255)));
+          g = Math.max(0, Math.min(255, g + Math.round((brightness / 100) * 255)));
+          b = Math.max(0, Math.min(255, b + Math.round((brightness / 100) * 255)));
+        }
+      } else if (mode === 'multiply') {
+        // Each channel is multiplied by its slider value (0.1–5), brightness is also a multiplier
+        let rMult = red || 1;
+        let gMult = green || 1;
+        let bMult = blue || 1;
+        let brightMult = brightness || 1;
+        r = Math.max(0, Math.min(255, r * rMult * brightMult));
+        g = Math.max(0, Math.min(255, g * gMult * brightMult));
+        b = Math.max(0, Math.min(255, b * bMult * brightMult));
       }
       previewImageData.data[i] = r;
       previewImageData.data[i + 1] = g;
@@ -57,7 +77,7 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
       previewImageData.data[i + 3] = a;
     }
     ctx.putImageData(previewImageData, 0, 0);
-  }, [brightness, red, green, blue, imageShape, isOpen]);
+  }, [brightness, red, green, blue, imageShape, isOpen, mode]);
 
   if (!isOpen) return null;
 
@@ -98,7 +118,9 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
       setRed(initialRed);
       setGreen(initialGreen);
       setBlue(initialBlue);
+      setMode(initialMode);
       onChange({ brightness: initialBrightness, red: initialRed, green: initialGreen, blue: initialBlue });
+      onModeChange(initialMode);
       onClose();
     }
   };
@@ -109,6 +131,7 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
       onApply();
     } else {
       onChange({ brightness, red, green, blue });
+      onModeChange(mode);
       onClose();
     }
   };
@@ -127,6 +150,40 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
             </button>
           </div>
           <div className="p-6 space-y-6">
+            <div className="flex items-center mb-4 justify-between">
+              <div className="flex items-center">
+                <label className="block text-sm font-medium text-zinc-300 mr-2">Mode:</label>
+                <select
+                  value={mode}
+                  onChange={e => {
+                    setMode(e.target.value as Mode);
+                    onModeChange(e.target.value as Mode);
+                  }}
+                  className="bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-sm focus:outline-none border border-zinc-600 h-8"
+                  style={{ minWidth: 90 }}
+                >
+                  <option value="normal">Normal</option>
+                  <option value="multiply">Multiply</option>
+                </select>
+              </div>
+              <button
+                type="button"
+                className="flex items-center gap-1 px-2 h-8 bg-zinc-700 text-zinc-100 rounded border border-zinc-600 hover:bg-zinc-600 transition-colors text-sm font-normal"
+                onClick={() => {
+                  setBrightness(0);
+                  setRed(0);
+                  setGreen(0);
+                  setBlue(0);
+                  setMode('normal');
+                  onChange({ brightness: 0, red: 0, green: 0, blue: 0 });
+                  onModeChange('normal');
+                }}
+                title="Reset all adjustments"
+              >
+                <i className="ri-refresh-line"></i>
+                Reset
+              </button>
+            </div>
             {imageShape && (imageShape as any).cachedPixels && (
               <div className="flex flex-col items-center mb-4">
                 <canvas
@@ -149,28 +206,65 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
               ['Red', red, setRed, 'red'],
               ['Green', green, setGreen, 'green'],
               ['Blue', blue, setBlue, 'blue'],
-            ] as [string, number, (v: number) => void, string][]).map(([label, value, setter, field]) => (
-              <div key={label} className="flex items-center space-x-2">
-                <label className="block text-sm font-medium text-zinc-300 w-32">{label}</label>
-                <input
-                  type="range"
-                  min={-100}
-                  max={100}
-                  value={value}
-                  onChange={handleSlider(setter, value, field)}
-                  className="w-full ml-2 bg-zinc-700 rounded-lg appearance-none h-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <input
-                  type="number"
-                  min={-255}
-                  max={255}
-                  value={Math.round((value / 100) * 255)}
-                  onChange={handleNumber(setter, -255, 255, field)}
-                  className="w-12 bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-right focus:outline-none"
-                />
-                <span className="text-xs text-zinc-400 w-16 text-center">{value}%</span>
-              </div>
-            ))}
+            ] as [string, number, (v: number) => void, string][]).map(([label, value, setter, field]) => {
+              // For multiply mode, value is a multiplier (0.1–5), for normal it's percent (-100–100)
+              const isMultiply = mode === 'multiply';
+              return (
+                <div key={label} className="flex items-center space-x-2">
+                  <label className="block text-sm font-medium text-zinc-300 w-32">{label}</label>
+                  <input
+                    type="range"
+                    min={isMultiply ? 0.1 : -100}
+                    max={isMultiply ? 5 : 100}
+                    step={isMultiply ? 0.01 : 1}
+                    value={isMultiply ? (value === 0 ? 1 : value) : value}
+                    onChange={e => {
+                      let v = parseFloat(e.target.value);
+                      if (isMultiply) {
+                        setter(v);
+                        onChange({
+                          brightness: field === 'brightness' ? v : brightness,
+                          red: field === 'red' ? v : red,
+                          green: field === 'green' ? v : green,
+                          blue: field === 'blue' ? v : blue,
+                        });
+                      } else {
+                        handleSlider(setter, value, field)(e as any);
+                      }
+                    }}
+                    className="w-full ml-2 bg-zinc-700 rounded-lg appearance-none h-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <input
+                    type="number"
+                    min={isMultiply ? 0.1 : -255}
+                    max={isMultiply ? 5 : 255}
+                    step={isMultiply ? 0.01 : 1}
+                    value={isMultiply ? (value === 0 ? 1 : value) : Math.round((value / 100) * 255)}
+                    onChange={e => {
+                      let v = parseFloat(e.target.value);
+                      if (isMultiply) {
+                        if (isNaN(v)) v = 1;
+                        if (v < 0.1) v = 0.1;
+                        if (v > 5) v = 5;
+                        setter(v);
+                        onChange({
+                          brightness: field === 'brightness' ? v : brightness,
+                          red: field === 'red' ? v : red,
+                          green: field === 'green' ? v : green,
+                          blue: field === 'blue' ? v : blue,
+                        });
+                      } else {
+                        handleNumber(setter, -255, 255, field)(e as any);
+                      }
+                    }}
+                    className="w-12 bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-right focus:outline-none"
+                  />
+                  <span className="text-xs text-zinc-400 w-16 text-center">
+                    {isMultiply ? `${value === 0 ? 1 : value}×` : `${value}%`}
+                  </span>
+                </div>
+              );
+            })}
           </div>
           <div className="flex justify-end space-x-3 p-4 border-t border-zinc-700 bg-zinc-900/30">
             <button

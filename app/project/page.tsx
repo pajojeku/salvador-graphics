@@ -35,6 +35,7 @@ function ProjectContent() {
   const [isExportJPGModalOpen, setIsExportJPGModalOpen] = useState(false);
   const [isPointModalOpen, setIsPointModalOpen] = useState(false);
   const [pointModalValues, setPointModalValues] = useState({ brightness: 0, red: 0, green: 0, blue: 0 });
+  const [pointModalMode, setPointModalMode] = useState<'normal' | 'multiply'>('normal');
   const originalPointModalValuesRef = useRef<{ brightness: number; red: number; green: number; blue: number } | null>(null);
 
   useEffect(() => {
@@ -340,6 +341,7 @@ function ProjectContent() {
           green: img.green ?? 0,
           blue: img.blue ?? 0,
         });
+        setPointModalMode(img.mode ?? 'normal');
         setIsPointModalOpen(true);
       } else {
         alert('Please select an image first.');
@@ -417,6 +419,10 @@ function ProjectContent() {
     setPointModalValues(vals);
   };
 
+  const handlePointModalModeChange = (mode: 'normal' | 'multiply') => {
+    setPointModalMode(mode);
+  };
+
   // Apply: copy modal values to shape and save
   const handlePointModalApply = () => {
     if (selectedShape && selectedShape.type === 'image') {
@@ -425,6 +431,7 @@ function ProjectContent() {
       img.red = pointModalValues.red;
       img.green = pointModalValues.green;
       img.blue = pointModalValues.blue;
+      img.mode = pointModalMode;
       canvasRefreshRef.current?.();
     }
     if (canvasManagerRef.current && currentProject) {
@@ -530,7 +537,9 @@ function ProjectContent() {
         red={pointModalValues.red}
         green={pointModalValues.green}
         blue={pointModalValues.blue}
+        mode={pointModalMode}
         onChange={handlePointModalChange}
+        onModeChange={handlePointModalModeChange}
         onApply={handlePointModalApply}
         onCancel={handlePointModalCancel}
         imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}
