@@ -35,7 +35,8 @@ function ProjectContent() {
   const [isExportJPGModalOpen, setIsExportJPGModalOpen] = useState(false);
   const [isPointModalOpen, setIsPointModalOpen] = useState(false);
   const [pointModalValues, setPointModalValues] = useState({ brightness: 0, red: 0, green: 0, blue: 0 });
-  const [pointModalMode, setPointModalMode] = useState<'normal' | 'multiply'>('normal');
+  const [pointModalMode, setPointModalMode] = useState<'normal' | 'multiply' | 'grayscale'>('normal');
+  const [pointModalGrayscaleMethod, setPointModalGrayscaleMethod] = useState<'average' | 'weighted'>('average');
   const originalPointModalValuesRef = useRef<{ brightness: number; red: number; green: number; blue: number } | null>(null);
 
   useEffect(() => {
@@ -342,6 +343,7 @@ function ProjectContent() {
           blue: img.blue ?? 0,
         });
         setPointModalMode(img.mode ?? 'normal');
+        setPointModalGrayscaleMethod(img.grayscaleMethod ?? 'average');
         setIsPointModalOpen(true);
       } else {
         alert('Please select an image first.');
@@ -352,6 +354,9 @@ function ProjectContent() {
       window.removeEventListener('openPointTransformationsModal', handleOpenPointModal);
     };
   }, [selectedShape]);
+  const handlePointModalGrayscaleMethodChange = (method: 'average' | 'weighted') => {
+    setPointModalGrayscaleMethod(method);
+  };
 
   if (loading) {
     return (
@@ -419,7 +424,7 @@ function ProjectContent() {
     setPointModalValues(vals);
   };
 
-  const handlePointModalModeChange = (mode: 'normal' | 'multiply') => {
+  const handlePointModalModeChange = (mode: 'normal' | 'multiply' | 'grayscale') => {
     setPointModalMode(mode);
   };
 
@@ -432,6 +437,7 @@ function ProjectContent() {
       img.green = pointModalValues.green;
       img.blue = pointModalValues.blue;
       img.mode = pointModalMode;
+      img.grayscaleMethod = pointModalGrayscaleMethod;
       canvasRefreshRef.current?.();
     }
     if (canvasManagerRef.current && currentProject) {
@@ -540,6 +546,8 @@ function ProjectContent() {
         mode={pointModalMode}
         onChange={handlePointModalChange}
         onModeChange={handlePointModalModeChange}
+        grayscaleMethod={pointModalGrayscaleMethod}
+        onGrayscaleMethodChange={handlePointModalGrayscaleMethodChange}
         onApply={handlePointModalApply}
         onCancel={handlePointModalCancel}
         imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}

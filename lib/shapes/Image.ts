@@ -19,7 +19,8 @@ export class ImageShape extends Shape {
   red: number = 0;
   green: number = 0;
   blue: number = 0;
-  mode: 'normal' | 'multiply' = 'normal';
+  mode: 'normal' | 'multiply' | 'grayscale' = 'normal';
+  grayscaleMethod: 'average' | 'weighted' = 'average';
   private cachedPixels: Uint8ClampedArray | null = null;
 
   constructor(imageId: string, x: number, y: number, width: number, height: number) {
@@ -64,7 +65,6 @@ export class ImageShape extends Shape {
             b = Math.max(0, Math.min(255, b + Math.round((this.brightness / 100) * 255)));
           }
         } else if (this.mode === 'multiply') {
-          // Each channel is multiplied by its slider value (0.1–5), brightness is also a multiplier
           let rMult = this.red || 1;
           let gMult = this.green || 1;
           let bMult = this.blue || 1;
@@ -72,6 +72,14 @@ export class ImageShape extends Shape {
           r = Math.max(0, Math.min(255, r * rMult * brightMult));
           g = Math.max(0, Math.min(255, g * gMult * brightMult));
           b = Math.max(0, Math.min(255, b * bMult * brightMult));
+        } else if (this.mode === 'grayscale') {
+          let gray = 0;
+          if (this.grayscaleMethod === 'average') {
+            gray = Math.round((r + g + b) / 3);
+          } else {
+            gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+          }
+          r = g = b = gray;
         }
         imageData.data[dstIdx] = r;
         imageData.data[dstIdx + 1] = g;
@@ -144,6 +152,7 @@ export class ImageShape extends Shape {
       green: this.green,
       blue: this.blue,
       mode: this.mode,
+      grayscaleMethod: this.grayscaleMethod,
     };
   }
 
@@ -164,7 +173,12 @@ export class ImageShape extends Shape {
     image.red = typeof data.red === 'number' ? data.red : 0;
     image.green = typeof data.green === 'number' ? data.green : 0;
     image.blue = typeof data.blue === 'number' ? data.blue : 0;
-    image.mode = data.mode === 'multiply' ? 'multiply' : 'normal';
+    if (data.mode === 'multiply' || data.mode === 'grayscale') {
+      image.mode = data.mode;
+    } else {
+      image.mode = 'normal';
+    }
+    image.grayscaleMethod = data.grayscaleMethod === 'weighted' ? 'weighted' : 'average';
     return image;
   }
 }

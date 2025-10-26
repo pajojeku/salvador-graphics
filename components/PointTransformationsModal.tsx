@@ -8,17 +8,34 @@ interface PointTransformationsModalProps {
   red: number;
   green: number;
   blue: number;
-  mode: 'normal' | 'multiply';
+  mode: 'normal' | 'multiply' | 'grayscale';
   onChange: (values: { brightness: number; red: number; green: number; blue: number }) => void;
-  onModeChange: (mode: 'normal' | 'multiply') => void;
+  onModeChange: (mode: 'normal' | 'multiply' | 'grayscale') => void;
+  grayscaleMethod: 'average' | 'weighted';
+  onGrayscaleMethodChange: (method: 'average' | 'weighted') => void;
   onApply?: () => void;
   onCancel?: () => void;
   imageShape?: ImageShape | null;
 }
 
-type Mode = 'normal' | 'multiply';
+type Mode = 'normal' | 'multiply' | 'grayscale';
 
-export default function PointTransformationsModal({ isOpen, onClose, brightness: initialBrightness, red: initialRed, green: initialGreen, blue: initialBlue, mode: initialMode, onChange, onModeChange, onApply, onCancel, imageShape }: PointTransformationsModalProps) {
+export default function PointTransformationsModal({
+  isOpen,
+  onClose,
+  brightness: initialBrightness,
+  red: initialRed,
+  green: initialGreen,
+  blue: initialBlue,
+  mode: initialMode,
+  onChange,
+  onModeChange,
+  grayscaleMethod,
+  onGrayscaleMethodChange,
+  onApply,
+  onCancel,
+  imageShape
+}: PointTransformationsModalProps) {
   const [brightness, setBrightness] = useState(initialBrightness);
   const [red, setRed] = useState(initialRed);
   const [green, setGreen] = useState(initialGreen);
@@ -36,6 +53,26 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
   useEffect(() => {
     setMode(initialMode);
   }, [initialMode, isOpen]);
+
+
+  // Reset modal sliders and grayscale method only when mode is changed by user (not on modal open)
+  const handleModeChange = (newMode: Mode) => {
+    setMode(newMode);
+    onModeChange(newMode);
+    if (newMode === 'normal' || newMode === 'multiply') {
+      setBrightness(0);
+      setRed(0);
+      setGreen(0);
+      setBlue(0);
+    }
+    if (newMode === 'grayscale') {
+      setBrightness(0);
+      setRed(0);
+      setGreen(0);
+      setBlue(0);
+      onGrayscaleMethodChange('average');
+    }
+  };
 
   useEffect(() => {
     if (!imageShape || !previewCanvasRef.current || !(imageShape as any).cachedPixels) return;
@@ -62,7 +99,6 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
           b = Math.max(0, Math.min(255, b + Math.round((brightness / 100) * 255)));
         }
       } else if (mode === 'multiply') {
-        // Each channel is multiplied by its slider value (0.1–5), brightness is also a multiplier
         let rMult = red || 1;
         let gMult = green || 1;
         let bMult = blue || 1;
@@ -70,6 +106,15 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
         r = Math.max(0, Math.min(255, r * rMult * brightMult));
         g = Math.max(0, Math.min(255, g * gMult * brightMult));
         b = Math.max(0, Math.min(255, b * bMult * brightMult));
+      } else if (mode === 'grayscale') {
+        let gray = 0;
+        if (grayscaleMethod === 'average') {
+          gray = Math.round((r + g + b) / 3);
+        } else {
+          // weighted: 0.299 * R + 0.587 * G + 0.114 * B
+          gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+        }
+        r = g = b = gray;
       }
       previewImageData.data[i] = r;
       previewImageData.data[i + 1] = g;
@@ -77,7 +122,7 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
       previewImageData.data[i + 3] = a;
     }
     ctx.putImageData(previewImageData, 0, 0);
-  }, [brightness, red, green, blue, imageShape, isOpen, mode]);
+  }, [brightness, red, green, blue, imageShape, isOpen, mode, grayscaleMethod]);
 
   if (!isOpen) return null;
 
@@ -155,15 +200,13 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
                 <label className="block text-sm font-medium text-zinc-300 mr-2">Mode:</label>
                 <select
                   value={mode}
-                  onChange={e => {
-                    setMode(e.target.value as Mode);
-                    onModeChange(e.target.value as Mode);
-                  }}
+                  onChange={e => handleModeChange(e.target.value as Mode)}
                   className="bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-sm focus:outline-none border border-zinc-600 h-8"
-                  style={{ minWidth: 90 }}
+                  style={{ minWidth: 110 }}
                 >
                   <option value="normal">Normal</option>
                   <option value="multiply">Multiply</option>
+                  <option value="grayscale">Grayscale</option>
                 </select>
               </div>
               <button
@@ -201,7 +244,7 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
                 <div className="text-xs text-zinc-400 mb-1">Image preview</div>
               </div>
             )}
-            {([
+            {mode !== 'grayscale' && ([
               ['Brightness', brightness, setBrightness, 'brightness'],
               ['Red', red, setRed, 'red'],
               ['Green', green, setGreen, 'green'],
@@ -265,6 +308,20 @@ export default function PointTransformationsModal({ isOpen, onClose, brightness:
                 </div>
               );
             })}
+            {mode === 'grayscale' && (
+              <div className="flex flex-col items-center mt-4">
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Method:</label>
+                <select
+                  value={grayscaleMethod}
+                  onChange={e => onGrayscaleMethodChange(e.target.value as 'average' | 'weighted')}
+                  className="bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-sm focus:outline-none border border-zinc-600 h-8"
+                  style={{ minWidth: 140 }}
+                >
+                  <option value="average">Averaged</option>
+                  <option value="weighted">Weighted</option>
+                </select>
+              </div>
+            )}
           </div>
           <div className="flex justify-end space-x-3 p-4 border-t border-zinc-700 bg-zinc-900/30">
             <button
