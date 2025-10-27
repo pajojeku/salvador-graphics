@@ -76,33 +76,38 @@ export class PPMLoader {
   }
 
   private static parseP3Data(buffer: Uint8Array, position: number, width: number, height: number, maxVal: number, rgbaData: Uint8ClampedArray) {
-    const tokens: number[] = [];
-    let current = '';
-
-    for (let i = position; i < buffer.length; i++) {
+    // Blokowe tokenizowanie: szybkie przetwarzanie liczb bez stringów
+    const tokens = new Uint16Array(width * height * 3);
+    let tokenIdx = 0;
+    let value = 0;
+    let inToken = false;
+    for (let i = position; i < buffer.length && tokenIdx < tokens.length; i++) {
       const char = buffer[i];
-      if (char === 32 || char === 9 || char === 10 || char === 13) {
-        if (current) {
-          tokens.push(parseInt(current, 10));
-          current = '';
-        }
-      } else if (char === 35) {
-        if (current) {
-          tokens.push(parseInt(current, 10));
-          current = '';
-        }
+      if (char >= 48 && char <= 57) { // '0'-'9'
+        value = value * 10 + (char - 48);
+        inToken = true;
+      } else if (char === 35) { // #
         while (i < buffer.length && buffer[i] !== 10) i++;
-      } else {
-        current += String.fromCharCode(char);
+        if (inToken) {
+          tokens[tokenIdx++] = value;
+          value = 0;
+          inToken = false;
+        }
+      } else if (char === 32 || char === 9 || char === 10 || char === 13) {
+        if (inToken) {
+          tokens[tokenIdx++] = value;
+          value = 0;
+          inToken = false;
+        }
       }
     }
-    if (current) tokens.push(parseInt(current, 10));
+    if (inToken && tokenIdx < tokens.length) tokens[tokenIdx++] = value;
 
     const scale = maxVal === 255 ? 1 : 255 / maxVal;
     for (let i = 0; i < width * height; i++) {
-      const r = Math.min(255, Math.round((tokens[i * 3] || 0) * scale));
-      const g = Math.min(255, Math.round((tokens[i * 3 + 1] || 0) * scale));
-      const b = Math.min(255, Math.round((tokens[i * 3 + 2] || 0) * scale));
+      const r = Math.min(255, Math.round(tokens[i * 3] * scale));
+      const g = Math.min(255, Math.round(tokens[i * 3 + 1] * scale));
+      const b = Math.min(255, Math.round(tokens[i * 3 + 2] * scale));
       rgbaData[i * 4] = r;
       rgbaData[i * 4 + 1] = g;
       rgbaData[i * 4 + 2] = b;
@@ -111,25 +116,34 @@ export class PPMLoader {
   }
 
   private static parseP6Data(buffer: Uint8Array, position: number, width: number, height: number, maxVal: number, rgbaData: Uint8ClampedArray) {
+    // Blokowe kopiowanie dla P6
     const scale = maxVal === 255 ? 1 : 255 / maxVal;
     const bytesPerSample = maxVal > 255 ? 2 : 1;
-    
-    for (let i = 0; i < width * height; i++) {
-      let r, g, b;
-      if (bytesPerSample === 1) {
-        r = buffer[position++] || 0;
-        g = buffer[position++] || 0;
-        b = buffer[position++] || 0;
-      } else {
-        r = ((buffer[position++] || 0) << 8) | (buffer[position++] || 0);
-        g = ((buffer[position++] || 0) << 8) | (buffer[position++] || 0);
-        b = ((buffer[position++] || 0) << 8) | (buffer[position++] || 0);
+    const pixelCount = width * height;
+    if (bytesPerSample === 1) {
+      // Szybkie kopiowanie bloków
+      let src = position;
+      let dst = 0;
+      const end = src + pixelCount * 3;
+      while (src + 2 < end) {
+        rgbaData[dst++] = Math.min(255, Math.round(buffer[src++] * scale)); // R
+        rgbaData[dst++] = Math.min(255, Math.round(buffer[src++] * scale)); // G
+        rgbaData[dst++] = Math.min(255, Math.round(buffer[src++] * scale)); // B
+        rgbaData[dst++] = 255;
       }
-      
-      rgbaData[i * 4] = Math.min(255, Math.round(r * scale));
-      rgbaData[i * 4 + 1] = Math.min(255, Math.round(g * scale));
-      rgbaData[i * 4 + 2] = Math.min(255, Math.round(b * scale));
-      rgbaData[i * 4 + 3] = 255;
+    } else {
+      // 16-bit na kanał
+      let src = position;
+      let dst = 0;
+      for (let i = 0; i < pixelCount; i++) {
+        const r = ((buffer[src++] << 8) | buffer[src++]) || 0;
+        const g = ((buffer[src++] << 8) | buffer[src++]) || 0;
+        const b = ((buffer[src++] << 8) | buffer[src++]) || 0;
+        rgbaData[dst++] = Math.min(255, Math.round(r * scale));
+        rgbaData[dst++] = Math.min(255, Math.round(g * scale));
+        rgbaData[dst++] = Math.min(255, Math.round(b * scale));
+        rgbaData[dst++] = 255;
+      }
     }
   }
 }
