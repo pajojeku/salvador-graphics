@@ -12,6 +12,7 @@ import ShapeInputModal, { ShapeInputData } from '@/components/ShapeInputModal';
 import ExportJPGModal from '@/components/ExportJPGModal';
 import PointTransformationsModal from '@/components/PointTransformationsModal';
 import FiltersModal, { FilterType } from '@/components/FiltersModal';
+import NormalizationModal from '@/components/NormalizationModal';
 import {
   applyAverageFilter,
   applyMedianFilter,
@@ -25,6 +26,7 @@ import { Shape } from '@/lib/shapes/Shape';
 import { ImageShape } from '@/lib/shapes/Image';
 
 function ProjectContent() {
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const [selectedTool, setSelectedTool] = useState('select');
@@ -36,6 +38,25 @@ function ProjectContent() {
   const [strokeWidth, setStrokeWidth] = useState(1);
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [selectedShape, setSelectedShape] = useState<Shape | null>(null);
+
+  // Normalization modal state/effect/handler (must be after selectedShape)
+  const [isNormalizationModalOpen, setIsNormalizationModalOpen] = useState(false);
+  useEffect(() => {
+    function handleOpenNormalizationModal() {
+      if (selectedShape && selectedShape.type === 'image') {
+        setIsNormalizationModalOpen(true);
+      } else {
+        alert('Please select an image first.');
+      }
+    }
+    window.addEventListener('openNormalizationModal', handleOpenNormalizationModal);
+    return () => {
+      window.removeEventListener('openNormalizationModal', handleOpenNormalizationModal);
+    };
+  }, [selectedShape]);
+  const handleNormalizationModalClose = () => {
+    setIsNormalizationModalOpen(false);
+  };
   const canvasManagerRef = useRef<CanvasManager | null>(null);
   const canvasRefreshRef = useRef<(() => void) | null>(null);
   const [isShapeModalOpen, setIsShapeModalOpen] = useState(false);
@@ -730,6 +751,12 @@ useEffect(() => {
         onReset={handleFiltersModalReset}
         gaussianSigma={gaussianSigma}
         onGaussianSigmaChange={setGaussianSigma}
+      />
+      {/* Normalization Modal */}
+      <NormalizationModal
+        isOpen={isNormalizationModalOpen}
+        onClose={handleNormalizationModalClose}
+        imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}
       />
     </>
   );

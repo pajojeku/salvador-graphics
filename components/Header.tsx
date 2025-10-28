@@ -48,6 +48,15 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
     setActiveMenu(null);
   };
 
+
+  const handleNormalization = () => {
+    if (typeof window !== 'undefined') {
+      const event = new CustomEvent('openNormalizationModal');
+      window.dispatchEvent(event);
+    }
+    setActiveMenu(null);
+  };
+
   const handleFilters = () => {
     if (typeof window !== 'undefined') {
       const event = new CustomEvent('openFiltersModal');
@@ -140,6 +149,13 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
                       >
                         <i className="ri-magic-line"></i>
                         <span>Filters</span>
+                      </button>
+                      <button
+                        onClick={handleNormalization}
+                        className="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700 flex items-center space-x-2 cursor-pointer"
+                      >
+                        <i className="ri-equalizer-line"></i>
+                        <span>Normalization</span>
                       </button>
                     </div>
                   )}
