@@ -370,6 +370,24 @@ export class CanvasManager {
               } else if (shape.normalizationType === 'equalize') {
                 filtered = require('@/lib/normalization').histogramEqualize(filtered, shape.width, shape.height);
               }
+              // BINARIZATION: nakładamy na końcu
+              const binarizationType = shape.binarizationType;
+              if (binarizationType && binarizationType !== 'none') {
+                const binarization = require('@/lib/binarization');
+                if (binarizationType === 'manual') {
+                  filtered = binarization.manualThreshold(filtered, shape.width, shape.height, shape.binarizationThreshold ?? 128);
+                } else if (binarizationType === 'percent') {
+                  filtered = binarization.percentBlackSelection(filtered, shape.width, shape.height, shape.binarizationPercent ?? 50).dst;
+                } else if (binarizationType === 'mean') {
+                  filtered = binarization.meanIterativeSelection(filtered, shape.width, shape.height).dst;
+                } else if (binarizationType === 'entropy') {
+                  filtered = binarization.entropySelection(filtered, shape.width, shape.height).dst;
+                } else if (binarizationType === 'minError') {
+                  filtered = binarization.minimumError(filtered, shape.width, shape.height).dst;
+                } else if (binarizationType === 'fuzzyMinError') {
+                  filtered = binarization.fuzzyMinimumError(filtered, shape.width, shape.height).dst;
+                }
+              }
               shape.setCachedPixels(filtered);
             } else {
               console.error('Image not found in DB:', shapeData.imageId);

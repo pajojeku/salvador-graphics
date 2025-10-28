@@ -1,3 +1,5 @@
+
+
 'use client';
 
 import { useState } from 'react';
@@ -13,6 +15,14 @@ interface HeaderProps {
 
 export default function Header({ projectName, onExportPNG, onExportJPG, onSaveProject, onLoadProject }: HeaderProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
+  const handleBinarization = () => {
+    if (typeof window !== 'undefined') {
+      const event = new CustomEvent('openBinarizationModal');
+      window.dispatchEvent(event);
+    }
+    setActiveMenu(null);
+  };
 
   const menuItems = [
     { name: 'Salvador', icon: 'ri-home-line', isHome: true, logo: '/icon.png' },
@@ -156,6 +166,13 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
                       >
                         <i className="ri-equalizer-line"></i>
                         <span>Normalization</span>
+                      </button>
+                      <button
+                        onClick={handleBinarization}
+                        className="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700 flex items-center space-x-2 cursor-pointer"
+                      >
+                        <i className="ri-contrast-2-line"></i>
+                        <span>Binarization</span>
                       </button>
                     </div>
                   )}

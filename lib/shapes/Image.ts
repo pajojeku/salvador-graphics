@@ -31,6 +31,10 @@ export class ImageShape extends Shape {
   sharpenStrength: number = 0.5;
   gaussianSigma: number = 1.0;
   normalizationType: 'none' | 'stretch' | 'equalize' = 'none';
+  // Binarization:
+  binarizationType: 'none' | 'manual' | 'percent' | 'mean' | 'entropy' | 'minError' | 'fuzzyMinError' = 'none';
+  binarizationThreshold: number = 128;
+  binarizationPercent: number = 50;
   private cachedPixels: Uint8ClampedArray | null = null;
   private originalPixels: Uint8ClampedArray | null = null;
 
@@ -192,6 +196,9 @@ export class ImageShape extends Shape {
       sharpenStrength: this.sharpenStrength,
       gaussianSigma: this.gaussianSigma,
       normalizationType: this.normalizationType,
+      binarizationType: this.binarizationType,
+      binarizationThreshold: this.binarizationThreshold,
+      binarizationPercent: this.binarizationPercent,
     };
   }
 
@@ -231,6 +238,14 @@ export class ImageShape extends Shape {
     } else {
       image.normalizationType = 'none';
     }
+    // Binarization:
+    if (data.binarizationType === 'manual' || data.binarizationType === 'percent' || data.binarizationType === 'mean' || data.binarizationType === 'entropy' || data.binarizationType === 'minError' || data.binarizationType === 'fuzzyMinError') {
+      image.binarizationType = data.binarizationType;
+    } else {
+      image.binarizationType = 'none';
+    }
+    if (typeof data.binarizationThreshold === 'number') image.binarizationThreshold = data.binarizationThreshold;
+    if (typeof data.binarizationPercent === 'number') image.binarizationPercent = data.binarizationPercent;
     // originalPixels i cachedPixels muszą być ustawione po wczytaniu obrazu z DB!
     return image;
   }

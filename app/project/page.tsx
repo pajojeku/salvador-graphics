@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, Suspense } from 'react';
@@ -13,6 +14,7 @@ import ExportJPGModal from '@/components/ExportJPGModal';
 import PointTransformationsModal from '@/components/PointTransformationsModal';
 import FiltersModal, { FilterType } from '@/components/FiltersModal';
 import NormalizationModal from '@/components/NormalizationModal';
+import BinarizationModal from '@/components/BinarizationModal';
 import {
   applyAverageFilter,
   applyMedianFilter,
@@ -29,6 +31,7 @@ import { ImageShape } from '@/lib/shapes/Image';
 
 function ProjectContent() {
 
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const [selectedTool, setSelectedTool] = useState('select');
@@ -39,7 +42,27 @@ function ProjectContent() {
   const [currentColor, setCurrentColor] = useState('#000000');
   const [strokeWidth, setStrokeWidth] = useState(1);
   const [shapes, setShapes] = useState<Shape[]>([]);
+
   const [selectedShape, setSelectedShape] = useState<Shape | null>(null);
+
+  // Binarization modal state/effect/handler
+  const [isBinarizationModalOpen, setIsBinarizationModalOpen] = useState(false);
+  useEffect(() => {
+    function handleOpenBinarizationModal() {
+      if (selectedShape && selectedShape.type === 'image') {
+        setIsBinarizationModalOpen(true);
+      } else {
+        alert('Please select an image first.');
+      }
+    }
+    window.addEventListener('openBinarizationModal', handleOpenBinarizationModal);
+    return () => {
+      window.removeEventListener('openBinarizationModal', handleOpenBinarizationModal);
+    };
+  }, [selectedShape]);
+  const handleBinarizationModalClose = () => {
+    setIsBinarizationModalOpen(false);
+  };
 
   // Normalization modal state/effect/handler (must be after selectedShape)
   const [isNormalizationModalOpen, setIsNormalizationModalOpen] = useState(false);
@@ -784,6 +807,18 @@ useEffect(() => {
         onClose={handleNormalizationModalClose}
         imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}
         onApplyNormalization={() => {
+          handleShapeUpdate();
+          if (currentProject) {
+            projectStorage.update(currentProject.id, { ...currentProject });
+          }
+        }}
+      />
+      {/* Binarization Modal */}
+      <BinarizationModal
+        isOpen={isBinarizationModalOpen}
+        onClose={handleBinarizationModalClose}
+        imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}
+        onApplyBinarization={() => {
           handleShapeUpdate();
           if (currentProject) {
             projectStorage.update(currentProject.id, { ...currentProject });
