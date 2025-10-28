@@ -20,7 +20,9 @@ import {
   applySharpenFilter,
   applyGaussianFilter,
 } from '@/lib/filters';
+import { histogramStretch, histogramEqualize } from '@/lib/normalization';
 import { projectStorage, type Project } from '@/lib/projectStorage';
+
 import { CanvasManager } from '@/lib/CanvasManager';
 import { Shape } from '@/lib/shapes/Shape';
 import { ImageShape } from '@/lib/shapes/Image';
@@ -236,9 +238,33 @@ useEffect(() => {
       return;
     }
 
+    // Apply normalization to all image shapes after loading (inline, like filters)
+    if (canvasManagerRef.current) {
+      const allShapes = canvasManagerRef.current.getAllShapes?.() || [];
+      let normalizationApplied = false;
+      for (const shape of allShapes) {
+        if (shape.type === 'image') {
+          const img = shape as ImageShape;
+          const src = img.getOriginalPixels();
+          if (!src) continue;
+          let normalized = src;
+          if (img.normalizationType === 'stretch') {
+            normalized = histogramStretch(src, img.width, img.height);
+            normalizationApplied = true;
+          } else if (img.normalizationType === 'equalize') {
+            normalized = histogramEqualize(src, img.width, img.height);
+            normalizationApplied = true;
+          }
+          img.setCachedPixels(normalized);
+        }
+      }
+      // Odśwież canvas jeśli była nałożona normalizacja
+      if (normalizationApplied && canvasRefreshRef.current) {
+        canvasRefreshRef.current();
+      }
+    }
     setCurrentProject(project);
     setLoading(false);
-
     // Update last modified time
     projectStorage.update(projectId, { lastModified: new Date().toISOString() });
   }, [searchParams]);
@@ -757,6 +783,12 @@ useEffect(() => {
         isOpen={isNormalizationModalOpen}
         onClose={handleNormalizationModalClose}
         imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}
+        onApplyNormalization={() => {
+          handleShapeUpdate();
+          if (currentProject) {
+            projectStorage.update(currentProject.id, { ...currentProject });
+          }
+        }}
       />
     </>
   );

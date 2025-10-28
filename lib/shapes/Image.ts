@@ -30,6 +30,7 @@ export class ImageShape extends Shape {
   sobelThreshold: number = 64;
   sharpenStrength: number = 0.5;
   gaussianSigma: number = 1.0;
+  normalizationType: 'none' | 'stretch' | 'equalize' = 'none';
   private cachedPixels: Uint8ClampedArray | null = null;
   private originalPixels: Uint8ClampedArray | null = null;
 
@@ -188,8 +189,9 @@ export class ImageShape extends Shape {
       maskSize: this.maskSize,
       sobelDir: this.sobelDir,
       sobelThreshold: this.sobelThreshold,
-  sharpenStrength: this.sharpenStrength,
-  gaussianSigma: this.gaussianSigma,
+      sharpenStrength: this.sharpenStrength,
+      gaussianSigma: this.gaussianSigma,
+      normalizationType: this.normalizationType,
     };
   }
 
@@ -198,6 +200,7 @@ export class ImageShape extends Shape {
     cloned.selected = this.selected;
     cloned.visible = this.visible;
     cloned.cachedPixels = this.cachedPixels;
+    cloned.normalizationType = this.normalizationType;
     return cloned;
   }
 
@@ -217,13 +220,18 @@ export class ImageShape extends Shape {
     }
     image.grayscaleMethod = data.grayscaleMethod === 'weighted' ? 'weighted' : 'average';
     // Filtry:
-  if (data.filterType) image.filterType = data.filterType;
+    if (data.filterType) image.filterType = data.filterType;
     if (typeof data.maskSize === 'number') image.maskSize = data.maskSize;
     if (data.sobelDir) image.sobelDir = data.sobelDir;
     if (typeof data.sobelThreshold === 'number') image.sobelThreshold = data.sobelThreshold;
     if (typeof data.sharpenStrength === 'number') image.sharpenStrength = data.sharpenStrength;
-  if (typeof data.gaussianSigma === 'number') image.gaussianSigma = data.gaussianSigma;
-  // originalPixels i cachedPixels muszą być ustawione po wczytaniu obrazu z DB!
+    if (typeof data.gaussianSigma === 'number') image.gaussianSigma = data.gaussianSigma;
+    if (data.normalizationType === 'stretch' || data.normalizationType === 'equalize') {
+      image.normalizationType = data.normalizationType;
+    } else {
+      image.normalizationType = 'none';
+    }
+    // originalPixels i cachedPixels muszą być ustawione po wczytaniu obrazu z DB!
     return image;
   }
 }

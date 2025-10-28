@@ -8,6 +8,7 @@ interface NormalizationModalProps {
   isOpen: boolean;
   onClose: () => void;
   imageShape: any; // ImageShape | null
+  onApplyNormalization?: () => void;
 }
 
 
@@ -17,15 +18,53 @@ const normalizationTypeLabels: Record<NormalizationType, string> = {
   equalize: 'Histogram Equalization',
 };
 
-const NormalizationModal: React.FC<NormalizationModalProps> = ({ isOpen, onClose, imageShape }) => {
 
+const NormalizationModal: React.FC<NormalizationModalProps> = ({ isOpen, onClose, imageShape, onApplyNormalization }) => {
   const [normalizationType, setNormalizationType] = useState<NormalizationType>('none');
+  const [initialNormalizationType, setInitialNormalizationType] = useState<NormalizationType>('none');
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // On open, sync modal state with image
+  useEffect(() => {
+    if (isOpen && imageShape) {
+      setNormalizationType(imageShape.normalizationType || 'none');
+      setInitialNormalizationType(imageShape.normalizationType || 'none');
+    }
+  }, [isOpen, imageShape]);
 
   // Reset handler
   const handleReset = () => {
     setNormalizationType('none');
-    // Add more reset logic if needed
+  };
+
+  // Cancel handler: restore initial state
+  const handleCancel = () => {
+    if (imageShape) {
+      setNormalizationType(initialNormalizationType);
+    }
+    onClose();
+  };
+
+  // Apply handler: save normalization to image
+  const handleApply = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (imageShape) {
+      imageShape.normalizationType = normalizationType;
+      // Actually update cachedPixels
+      const width = imageShape.width;
+      const height = imageShape.height;
+      let src = imageShape.originalPixels || imageShape.cachedPixels;
+      if (!src) return;
+      let normalized: Uint8ClampedArray = src;
+      if (normalizationType === 'stretch') {
+        normalized = histogramStretch(src, width, height);
+      } else if (normalizationType === 'equalize') {
+        normalized = histogramEqualize(src, width, height);
+      }
+      imageShape.cachedPixels = new Uint8ClampedArray(normalized);
+    }
+    if (onApplyNormalization) onApplyNormalization();
+    onClose();
   };
 
   // Draw preview with normalization
@@ -36,7 +75,8 @@ const NormalizationModal: React.FC<NormalizationModalProps> = ({ isOpen, onClose
     if (!ctx) return;
     const width = imageShape.width;
     const height = imageShape.height;
-    const src = (imageShape as any).cachedPixels as Uint8ClampedArray;
+    // Always preview from originalPixels if available, else cachedPixels
+    const src = (imageShape.originalPixels || imageShape.cachedPixels) as Uint8ClampedArray;
     let normalized: Uint8ClampedArray = src;
     if (normalizationType === 'stretch') {
       normalized = histogramStretch(src, width, height);
@@ -194,15 +234,24 @@ const NormalizationModal: React.FC<NormalizationModalProps> = ({ isOpen, onClose
             );
           })()}
         </div>
-        <div className="flex justify-end space-x-3 p-4 border-t border-zinc-700 bg-zinc-900/30">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-700 rounded transition-colors"
-          >
-            Close
-          </button>
-        </div>
+        <form onSubmit={handleApply}>
+          <div className="flex justify-end space-x-3 p-4 border-t border-zinc-700 bg-zinc-900/30">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-4 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-700 rounded transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 text-sm bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded font-medium transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
+            >
+              <i className="ri-check-line"></i>
+              <span>Apply</span>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

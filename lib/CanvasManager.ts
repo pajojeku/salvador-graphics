@@ -347,7 +347,12 @@ export class CanvasManager {
               shape.setOriginalPixels(pixels);
               // Automatycznie nałóż filtr zgodnie z parametrami z projektu
               let filtered = pixels;
-              const { filterType, maskSize, sobelDir, sobelThreshold, sharpenStrength, gaussianSigma } = shape;
+              const filterType = shape.filterType;
+              const maskSize = shape.maskSize;
+              const sobelDir = shape.sobelDir;
+              const sobelThreshold = shape.sobelThreshold;
+              const sharpenStrength = shape.sharpenStrength;
+              const gaussianSigma = shape.gaussianSigma;
               if (filterType === 'average') {
                 filtered = require('@/lib/filters').applyAverageFilter(pixels, shape.width, shape.height, maskSize ?? 3);
               } else if (filterType === 'median') {
@@ -358,6 +363,12 @@ export class CanvasManager {
                 filtered = require('@/lib/filters').applySharpenFilter(pixels, shape.width, shape.height, sharpenStrength ?? 0.5);
               } else if (filterType === 'gaussian') {
                 filtered = require('@/lib/filters').applyGaussianFilter(pixels, shape.width, shape.height, maskSize ?? 3, gaussianSigma ?? 1.0);
+              }
+              // Nakładanie normalizacji na wynik filtra (lub oryginał)
+              if (shape.normalizationType === 'stretch') {
+                filtered = require('@/lib/normalization').histogramStretch(filtered, shape.width, shape.height);
+              } else if (shape.normalizationType === 'equalize') {
+                filtered = require('@/lib/normalization').histogramEqualize(filtered, shape.width, shape.height);
               }
               shape.setCachedPixels(filtered);
             } else {
