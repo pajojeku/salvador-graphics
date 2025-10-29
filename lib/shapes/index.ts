@@ -5,3 +5,5 @@ export * from './Circle';
 export * from './Brush';
 export * from './Image';
 export * from './RGBCube';
+
+export * from './Bezier';

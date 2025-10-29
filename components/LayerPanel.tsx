@@ -84,7 +84,7 @@ export default function LayerPanel({ selectedLayer, onLayerSelect, shapes = [], 
         ) : (
           [...shapes].reverse().map((shape, reverseIndex) => {
             const originalIndex = shapes.length - 1 - reverseIndex;
-            const displayName = getShapeDisplayName(shape, originalIndex);
+            const displayName = getShapeDisplayName(shape, originalIndex).charAt(0).toUpperCase() + getShapeDisplayName(shape, originalIndex).slice(1);
             return (
               <div
                 key={shape.id}

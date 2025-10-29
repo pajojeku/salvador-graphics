@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { CanvasManager } from '@/lib/CanvasManager';
-import { Line, Rectangle, Circle, Brush, RGBCube } from '@/lib/shapes';
+import { Line, Rectangle, Circle, Brush, RGBCube, Bezier } from '@/lib/shapes';
 import { projectStorage } from '@/lib/projectStorage';
 
 interface CanvasProps {
@@ -28,6 +28,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
   const [canvasManager, setCanvasManager] = useState<CanvasManager | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
+  const [currentBezier, setCurrentBezier] = useState<Bezier | null>(null);
   const [, forceUpdate] = useState({});
   const [selectedShape, setSelectedShape] = useState<{ shape: any; offsetX: number; offsetY: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -400,8 +401,11 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
           const centerY = startPoint.y;
           const cube = new RGBCube(centerX, centerY, size, color, strokeWidth);
           canvasManager.addShape(cube);
+        } else if (currentTool === 'bezier' && currentBezier && currentBezier.points.length >= 4) {
+          // Dodaj Bezier do canvasManager jeśli są co najmniej 4 punkty
+          canvasManager.addShape(currentBezier.clone());
+          setCurrentBezier(null);
         }
-        
         // Renderuj tylko dla innych kształtów
         canvasManager.render();
         refreshCanvas();
@@ -419,6 +423,45 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     }
   }, [isDrawing, startPoint, canvasManager, currentTool, project, refreshCanvas, currentBrush, currentColor, scale, strokeWidth]);
 
+  // Synchronizuj selectedShape z CanvasManager (np. po kliknięciu w LayerPanel)
+  useEffect(() => {
+    if (!canvasManager) return;
+    const selected = canvasManager.getSelectedShape();
+    if (selected) {
+      let shapeX = 0, shapeY = 0;
+      if (selected.type === 'brush') {
+        const brush = selected as Brush;
+        if (brush.points.length > 0) {
+          shapeX = brush.points[0].x;
+          shapeY = brush.points[0].y;
+        }
+      } else if (selected.type === 'rectangle') {
+        const rect = selected as Rectangle;
+        shapeX = rect.x;
+        shapeY = rect.y;
+      } else if (selected.type === 'circle') {
+        const circle = selected as Circle;
+        shapeX = circle.center.x;
+        shapeY = circle.center.y;
+      } else if (selected.type === 'line') {
+        const line = selected as Line;
+        shapeX = line.start.x;
+        shapeY = line.start.y;
+      } else if (selected.type === 'image') {
+        const img = selected as any;
+        shapeX = img.x;
+        shapeY = img.y;
+      } else if (selected.type === 'rgbcube') {
+        const cube = selected as RGBCube;
+        shapeX = cube.x;
+        shapeY = cube.y;
+      }
+      setSelectedShape({ shape: selected, offsetX: 0, offsetY: 0 });
+    } else {
+      setSelectedShape(null);
+    }
+  }, [canvasManager && canvasManager.getSelectedShape()]);
+
   // Obsługa rysowania i przesuwania
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasManager) return;
@@ -434,7 +477,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     const y = (e.clientY - rect.top) * scaleY;
 
     // Tryb SELECT - próbuj złapać figurę lub handle
-    if (currentTool === 'select') {
+  if (currentTool === 'select') {
       // Najpierw sprawdź czy kliknięto w handle zaznaczonego kształtu
       if (selectedShape) {
         const handle = findHandleAtPoint(x, y, selectedShape.shape);
@@ -506,7 +549,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         canvasManager.render();
         refreshCanvas();
       }
-    } else if (currentTool === 'brush') {
+  } else if (currentTool === 'brush') {
       // Rozpocznij rysowanie pędzlem
       const color = hexToRgb(currentColor);
       const roundedX = Math.floor(x);
@@ -545,6 +588,32 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         }
         ctx.putImageData(imageData, 0, 0);
       }
+    } else if (currentTool === 'bezier') {
+      // Jeśli nie jest zaznaczony żaden bezier lub zaznaczony jest inny shape, zacznij nowy obiekt
+      const color = hexToRgb(currentColor);
+      // Jeśli zaznaczony jest bezier, dodaj punkt do niego; jeśli nie, twórz nowy obiekt
+      if (
+        selectedShape &&
+        selectedShape.shape.type === 'bezier' &&
+        selectedShape.shape.selected &&
+        !isDragging &&
+        !isResizing
+      ) {
+        const bezier = selectedShape.shape;
+        bezier.points.push({ x, y });
+        bezier.color = color;
+        setCurrentBezier(bezier);
+        canvasManager.render();
+        refreshCanvas();
+      } else {
+        const bezier = new Bezier([{ x, y }], color, 2);
+        setCurrentBezier(bezier);
+        canvasManager.addShape(bezier);
+        canvasManager.selectShape(bezier.id);
+        setSelectedShape({ shape: bezier, offsetX: 0, offsetY: 0 });
+      }
+      setIsDrawing(false);
+      setStartPoint(null);
     } else {
       // Tryb rysowania innych kształtów
       setStartPoint({ x, y });
@@ -959,6 +1028,10 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       const cube = new RGBCube(centerX, centerY, size, color, strokeWidth);
       canvasManager.addShape(cube);
     }
+    // Resetuj currentBezier jeśli zmieniono narzędzie lub odznaczono shape
+    if (currentBezier && (currentTool !== 'bezier' || !selectedShape || selectedShape.shape.type !== 'bezier' || !selectedShape.shape.selected)) {
+      setCurrentBezier(null);
+    }
 
     // Renderuj i aktualizuj canvas
     canvasManager.render();
@@ -987,7 +1060,8 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       case 'select': return 'default';
       case 'line':
       case 'rectangle':
-      case 'circle': return 'crosshair';
+      case 'circle':
+      case 'bezier': return 'crosshair';
       case 'hand': return 'grab';
       case 'zoom': return 'zoom-in';
       default: return 'crosshair';

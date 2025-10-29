@@ -1,4 +1,4 @@
-import { Shape, Line, Rectangle, Circle, Brush, ImageShape, RGBCube, LineData, RectangleData, CircleData } from './shapes/index'
+import { Shape, Line, Rectangle, Circle, Brush, ImageShape, RGBCube, LineData, RectangleData, CircleData, Bezier, BezierData } from './shapes/index'
 
 export interface CanvasState {
   shapes: Shape[];
@@ -333,6 +333,9 @@ export class CanvasManager {
           break;
         case 'brush':
           shape = Brush.deserialize(shapeData);
+          break;
+        case 'bezier':
+          shape = Bezier.deserialize(shapeData as BezierData);
           break;
         case 'image':
           console.log('Deserializing image shape:', shapeData);
