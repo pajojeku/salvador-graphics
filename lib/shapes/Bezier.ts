@@ -13,34 +13,50 @@ export class Bezier extends Shape {
   }
 
   draw(imageData: ImageData): void {
-    // Draw Bezier curve if at least 4 points, always in shape color
-    if (this.points.length >= 4) {
-      this.drawBezierCurve(imageData, this.points, this.color);
-    }
-    // Draw points and helper lines only if selected
-    if (this.selected) {
-      const handleColor: Color = { r: 0, g: 120, b: 255, a: 255 };
-      this.drawSelectionHandles(imageData);
+    // Always show control points
+    this.drawSelectionHandles(imageData);
 
-      // Draw lines between points
-      if (this.points.length > 1) {
-        for (let i = 0; i < this.points.length - 1; i++) {
-            this.drawLine(imageData, this.points[i], this.points[i + 1], handleColor);
-        }
+    // Draw helper (blue) lines only if selected
+    if (this.selected && this.points.length > 1) {
+      const handleColor: Color = { r: 0, g: 120, b: 255, a: 255 };
+      for (let i = 0; i < this.points.length - 1; i++) {
+        this.drawHelperLine(imageData, this.points[i], this.points[i + 1], handleColor);
       }
-      
+    }
+
+    // Draw Bezier curve if at least 4 points, use strokeWidth for thickness
+    if (this.points.length >= 4) {
+      this.drawThickLineBezierCurve(imageData, this.points, this.color, Math.max(1, this.strokeWidth));
     }
   }
 
-  // De Casteljau's algorithm for Bezier curve
-  private drawBezierCurve(imageData: ImageData, points: Point[], color: Color) {
+  // Draw Bezier curve with thickness
+  private drawThickLineBezierCurve(imageData: ImageData, points: Point[], color: Color, thickness: number) {
     const steps = 200;
     let prev = this.getBezierPoint(points, 0);
     for (let t = 1; t <= steps; t++) {
       const tt = t / steps;
       const curr = this.getBezierPoint(points, tt);
-      this.drawLine(imageData, prev, curr, color);
+      this.drawThickLine(imageData, prev, curr, color, thickness);
       prev = curr;
+    }
+  }
+
+  // Draw a thin helper line (for blue lines)
+  private drawHelperLine(imageData: ImageData, p1: Point, p2: Point, color: Color) {
+    let x0 = Math.floor(p1.x), y0 = Math.floor(p1.y);
+    let x1 = Math.floor(p2.x), y1 = Math.floor(p2.y);
+    const dx = Math.abs(x1 - x0);
+    const dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy;
+    while (true) {
+      this.setPixel(imageData, x0, y0, color);
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * err;
+      if (e2 > -dy) { err -= dy; x0 += sx; }
+      if (e2 < dx) { err += dx; y0 += sy; }
     }
   }
 
@@ -58,7 +74,8 @@ export class Bezier extends Shape {
     return tmp[0];
   }
 
-  private drawLine(imageData: ImageData, p1: Point, p2: Point, color: Color) {
+  // Draw a thick line (like Canvas.tsx drawPixelLine)
+  private drawThickLine(imageData: ImageData, p1: Point, p2: Point, color: Color, thickness: number) {
     let x0 = Math.floor(p1.x), y0 = Math.floor(p1.y);
     let x1 = Math.floor(p2.x), y1 = Math.floor(p2.y);
     const dx = Math.abs(x1 - x0);
@@ -67,7 +84,24 @@ export class Bezier extends Shape {
     const sy = y0 < y1 ? 1 : -1;
     let err = dx - dy;
     while (true) {
-      this.setPixel(imageData, x0, y0, color);
+      // Draw a circle/brush for thickness > 1
+      if (thickness <= 3) {
+        for (let dy2 = -Math.floor(thickness / 2); dy2 <= Math.floor(thickness / 2); dy2++) {
+          this.setPixel(imageData, x0, y0 + dy2, color);
+        }
+      } else {
+        const radius = thickness / 2;
+        const radiusSquared = radius * radius;
+        const offset = Math.ceil(radius);
+        for (let dy2 = -offset; dy2 <= offset; dy2++) {
+          for (let dx2 = -offset; dx2 <= offset; dx2++) {
+            const distSquared = dx2 * dx2 + dy2 * dy2;
+            if (distSquared <= radiusSquared) {
+              this.setPixel(imageData, x0 + dx2, y0 + dy2, color);
+            }
+          }
+        }
+      }
       if (x0 === x1 && y0 === y1) break;
       const e2 = 2 * err;
       if (e2 > -dy) { err -= dy; x0 += sx; }
@@ -110,6 +144,7 @@ export class Bezier extends Shape {
       color: this.color,
       selected: this.selected,
       visible: this.visible,
+      strokeWidth: this.strokeWidth,
       points: this.points.map(pt => ({ ...pt })),
     };
   }
@@ -122,7 +157,8 @@ export class Bezier extends Shape {
   }
 
   static deserialize(data: BezierData): Bezier {
-    const bezier = new Bezier(data.points.map(pt => ({ ...pt })), data.color, 2);
+    const width = typeof data.strokeWidth === 'number' ? data.strokeWidth : 2;
+    const bezier = new Bezier(data.points.map(pt => ({ ...pt })), data.color, width);
     bezier.id = data.id;
     bezier.selected = data.selected;
     bezier.visible = data.visible !== undefined ? data.visible : true;

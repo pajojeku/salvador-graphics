@@ -589,9 +589,8 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         ctx.putImageData(imageData, 0, 0);
       }
     } else if (currentTool === 'bezier') {
-      // Jeśli nie jest zaznaczony żaden bezier lub zaznaczony jest inny shape, zacznij nowy obiekt
+      // Rectangle-like: use strokeWidth from tool, always show control points
       const color = hexToRgb(currentColor);
-      // Jeśli zaznaczony jest bezier, dodaj punkt do niego; jeśli nie, twórz nowy obiekt
       if (
         selectedShape &&
         selectedShape.shape.type === 'bezier' &&
@@ -602,15 +601,19 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         const bezier = selectedShape.shape;
         bezier.points.push({ x, y });
         bezier.color = color;
+        if (typeof strokeWidth === 'number') bezier.strokeWidth = strokeWidth;
         setCurrentBezier(bezier);
         canvasManager.render();
         refreshCanvas();
       } else {
-        const bezier = new Bezier([{ x, y }], color, 2);
+        // Use strokeWidth from tool, like Rectangle
+        const width = typeof strokeWidth === 'number' ? strokeWidth : 2;
+        const bezier = new Bezier([{ x, y }], color, width);
         setCurrentBezier(bezier);
         canvasManager.addShape(bezier);
         canvasManager.selectShape(bezier.id);
         setSelectedShape({ shape: bezier, offsetX: 0, offsetY: 0 });
+        // Always render after first point so control point is visible
         canvasManager.render();
         refreshCanvas();
       }
