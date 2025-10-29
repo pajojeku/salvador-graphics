@@ -148,7 +148,7 @@ export class CanvasManager {
   /**
    * Dodaj kształt z ręcznie wprowadzonymi danymi (z modala)
    */
-  addShapeManually(type: 'line' | 'rectangle' | 'circle' | 'rgbcube', params: any): void {
+  addShapeManually(type: 'line' | 'rectangle' | 'circle' | 'rgbcube' | 'bezier', params: any): void {
     let shape: Shape | null = null;
 
     if (type === 'rectangle') {
@@ -181,6 +181,12 @@ export class CanvasManager {
         params.x,
         params.y,
         params.size,
+        params.color,
+        params.strokeWidth
+      );
+    } else if (type === 'bezier') {
+      shape = new Bezier(
+        params.bezierPoints,
         params.color,
         params.strokeWidth
       );

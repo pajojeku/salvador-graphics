@@ -763,7 +763,6 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     // Przesuwanie figury
     if (isDragging && selectedShape && currentTool === 'select') {
       const shape = selectedShape.shape;
-      
       // Dla obrazów i kostek RGB - pokazuj preview zamiast bezpośredniego przesuwania
       if (shape.type === 'image' || shape.type === 'rgbcube') {
         const newX = Math.round(x - selectedShape.offsetX);
@@ -771,14 +770,14 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         setDragPreviewPosition({ x: newX, y: newY });
         return;
       }
-      
+
       // Dla innych kształtów - natychmiastowe przesuwanie
       const newX = Math.round(x - selectedShape.offsetX);
       const newY = Math.round(y - selectedShape.offsetY);
 
       let currentX = 0;
       let currentY = 0;
-      
+
       if (shape.type === 'brush') {
         const brush = shape as Brush;
         if (brush.points.length > 0) {
@@ -797,8 +796,17 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         const line = shape as Line;
         currentX = Math.round(line.start.x);
         currentY = Math.round(line.start.y);
+      } else if (shape.type === 'bezier') {
+        // Przesuwaj względem lewego górnego rogu bounding boxa wszystkich punktów
+        const bezier = shape as Bezier;
+        if (bezier.points.length > 0) {
+          const xs = bezier.points.map(pt => pt.x);
+          const ys = bezier.points.map(pt => pt.y);
+          currentX = Math.round(Math.min(...xs));
+          currentY = Math.round(Math.min(...ys));
+        }
       }
-      
+
       const dx = newX - currentX;
       const dy = newY - currentY;
 

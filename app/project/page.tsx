@@ -87,7 +87,7 @@ function ProjectContent() {
   const canvasManagerRef = useRef<CanvasManager | null>(null);
   const canvasRefreshRef = useRef<(() => void) | null>(null);
   const [isShapeModalOpen, setIsShapeModalOpen] = useState(false);
-  const [modalShapeType, setModalShapeType] = useState<'line' | 'rectangle' | 'circle' | 'rgbcube' | null>(null);
+  const [modalShapeType, setModalShapeType] = useState<'line' | 'rectangle' | 'circle' | 'rgbcube' | 'bezier' | null>(null);
   const [isExportJPGModalOpen, setIsExportJPGModalOpen] = useState(false);
   const [isPointModalOpen, setIsPointModalOpen] = useState(false);
   const [pointModalValues, setPointModalValues] = useState({ brightness: 0, red: 0, green: 0, blue: 0 });
@@ -361,8 +361,8 @@ useEffect(() => {
   };
 
   const handleShapeModalOpen = (toolId: string) => {
-    if (['line', 'rectangle', 'circle'].includes(toolId)) {
-      setModalShapeType(toolId as 'line' | 'rectangle' | 'circle' | 'rgbcube');
+    if (['line', 'rectangle', 'circle', 'bezier'].includes(toolId)) {
+      setModalShapeType(toolId as 'line' | 'rectangle' | 'circle' | 'rgbcube' | 'bezier');
       setIsShapeModalOpen(true);
     }
   };
@@ -423,6 +423,17 @@ useEffect(() => {
         size: data.size,
         color,
         strokeWidth
+      });
+    } else if (
+      modalShapeType === 'bezier' &&
+      data.bezierPoints &&
+      data.bezierPoints.length >= 2 &&
+      typeof data.bezierStrokeWidth === 'number'
+    ) {
+      canvasManagerRef.current.addShapeManually('bezier', {
+        bezierPoints: data.bezierPoints,
+        color,
+        strokeWidth: data.bezierStrokeWidth
       });
     }
 

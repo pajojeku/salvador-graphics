@@ -23,7 +23,7 @@ export default function Toolbar({ selectedTool, onToolSelect, onShapeModalOpen, 
     { id: 'rectangle', icon: 'ri-checkbox-blank-line', tooltip: 'Rectangle Tool | Shift+Click for manual input' },
     { id: 'circle', icon: 'ri-checkbox-blank-circle-line', tooltip: 'Circle Tool | Shift+Click for manual input' },
     { id: 'rgbcube', icon: 'ri-box-3-line', tooltip: 'RGB Cube' },
-    { id: 'bezier', icon: 'ri-pen-nib-line', tooltip: 'Bezier Curve Tool' },
+    { id: 'bezier', icon: 'ri-pen-nib-line', tooltip: 'Bezier Curve Tool | Shift+Click for manual input' },
     { id: 'brush', icon: 'ri-brush-line', tooltip: 'Brush Tool' },
     //{ id: 'eraser', icon: 'ri-eraser-line', tooltip: 'Eraser Tool (E)' },
     //{ id: 'eyedropper', icon: 'ri-drop-line', tooltip: 'Eyedropper Tool (I)' },
@@ -34,7 +34,7 @@ export default function Toolbar({ selectedTool, onToolSelect, onShapeModalOpen, 
 
   const handleToolClick = (toolId: string, event: React.MouseEvent) => {
     // Check if Shift is pressed and it's a shape tool (not brush or select)
-    const isShapeTool = ['line', 'rectangle', 'circle', 'rgbcube'].includes(toolId);
+    const isShapeTool = ['line', 'rectangle', 'circle', 'rgbcube', 'bezier'].includes(toolId);
     
     if (event.shiftKey && isShapeTool && onShapeModalOpen) {
       onShapeModalOpen(toolId);
