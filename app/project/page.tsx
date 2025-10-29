@@ -44,6 +44,8 @@ function ProjectContent() {
   const [shapes, setShapes] = useState<Shape[]>([]);
 
   const [selectedShape, setSelectedShape] = useState<Shape | null>(null);
+  // Bezier control point index for PropertiesPanel
+  const [bezierPointIdx, setBezierPointIdx] = useState(0);
 
   // Binarization modal state/effect/handler
   const [isBinarizationModalOpen, setIsBinarizationModalOpen] = useState(false);
@@ -723,6 +725,8 @@ useEffect(() => {
               strokeWidth={strokeWidth}
               canvasManagerRef={canvasManagerRef}
               canvasRefreshRef={canvasRefreshRef}
+              bezierPointIdx={bezierPointIdx}
+              setBezierPointIdx={setBezierPointIdx}
             />
           </div>
           
@@ -740,6 +744,8 @@ useEffect(() => {
               onStrokeWidthChange={setStrokeWidth}
               selectedShape={selectedShape}
               onShapeUpdate={handleShapeUpdate}
+              bezierPointIdx={bezierPointIdx}
+              setBezierPointIdx={setBezierPointIdx}
             />
           </div>
         </div>

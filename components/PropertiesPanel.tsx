@@ -1,6 +1,7 @@
 
 'use client';
 
+
 import { useState } from 'react';
 import { Shape } from '@/lib/shapes';
 import { Circle } from '@/lib/shapes/Circle';
@@ -8,30 +9,30 @@ import { Rectangle } from '@/lib/shapes/Rectangle';
 import { Line } from '@/lib/shapes/Line';
 import { Brush } from '@/lib/shapes/Brush';
 import { RGBCube } from '@/lib/shapes/RGBCube';
+import { Bezier } from '@/lib/shapes/Bezier';
 import ColorPickerModal from './ColorPickerModal';
+
 
 interface PropertiesPanelProps {
   strokeWidth?: number;
   onStrokeWidthChange?: (width: number) => void;
   selectedShape?: Shape | null;
   onShapeUpdate?: () => void;
+  bezierPointIdx?: number;
+  setBezierPointIdx?: (idx: number) => void;
 }
 
-import { Bezier } from '@/lib/shapes/Bezier';
+
 
 export default function PropertiesPanel({ 
   strokeWidth = 1, 
   onStrokeWidthChange,
   selectedShape,
-  onShapeUpdate 
+  onShapeUpdate,
+  bezierPointIdx = 0,
+  setBezierPointIdx = () => {}
 }: PropertiesPanelProps) {
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
-  const [bezierPointIdx, setBezierPointIdx] = useState(0);
-
-  // Reset bezierPointIdx if selectedShape changes to non-Bezier
-  if (selectedShape && !(selectedShape instanceof Bezier) && bezierPointIdx !== 0) {
-    setTimeout(() => setBezierPointIdx(0), 0);
-  }
 
   return (
     <div className="bg-zinc-800">

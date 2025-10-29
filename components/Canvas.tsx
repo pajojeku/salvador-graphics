@@ -18,9 +18,11 @@ interface CanvasProps {
   strokeWidth?: number;
   canvasManagerRef?: React.MutableRefObject<CanvasManager | null>;
   canvasRefreshRef?: React.MutableRefObject<(() => void) | null>;
+  bezierPointIdx?: number;
+  setBezierPointIdx?: (idx: number) => void;
 }
 
-export default function Canvas({ project, currentTool = 'select', currentColor = '#000000', strokeWidth = 1, canvasManagerRef, canvasRefreshRef }: CanvasProps) {
+export default function Canvas({ project, currentTool = 'select', currentColor = '#000000', strokeWidth = 1, canvasManagerRef, canvasRefreshRef, bezierPointIdx, setBezierPointIdx }: CanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [scale, setScale] = useState(1);
@@ -475,28 +477,30 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     const y = (e.clientY - rect.top) * scaleY;
 
     // Tryb SELECT - próbuj złapać figurę lub handle
-  if (currentTool === 'select') {
+    if (currentTool === 'select') {
       // Najpierw sprawdź czy kliknięto w handle zaznaczonego kształtu
       if (selectedShape) {
         const handle = findHandleAtPoint(x, y, selectedShape.shape);
         if (handle) {
+          // If it's a Bezier control point handle, update bezierPointIdx
+          if (selectedShape.shape.type === 'bezier' && handle.startsWith('pt-') && typeof setBezierPointIdx === 'function') {
+            const idx = parseInt(handle.replace('pt-', ''));
+            setBezierPointIdx(idx);
+          }
           setIsResizing(true);
           setResizeHandle(handle);
           setResizeStartPoint({ x, y });
           return;
         }
       }
-      
       // Następnie sprawdź czy kliknięto w jakiś kształt
       const shape = canvasManager.findShapeAtPoint(x, y);
       if (shape) {
         // Zaznacz i przygotuj do przesuwania
         canvasManager.selectShape(shape.id);
-        
         // Oblicz offset w zależności od typu kształtu
         let shapeX = 0;
         let shapeY = 0;
-        
         if (shape.type === 'brush') {
           // Dla brush użyj pierwszego punktu
           const brush = shape as Brush;
@@ -524,20 +528,20 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
           const cube = shape as RGBCube;
           shapeX = cube.x;
           shapeY = cube.y;
+        } else if (shape.type === 'bezier') {
+          // When selecting a Bezier, default to first control point
+          if (typeof setBezierPointIdx === 'function') setBezierPointIdx(0);
         }
-        
         setSelectedShape({
           shape,
           offsetX: x - shapeX,
           offsetY: y - shapeY
         });
         setIsDragging(true);
-        
         // Dla obrazów i kostek RGB ustaw początkową pozycję preview na aktualną pozycję
         if (shape.type === 'image' || shape.type === 'rgbcube') {
           setDragPreviewPosition({ x: shapeX, y: shapeY });
         }
-        
         canvasManager.render();
         refreshCanvas();
       } else {
@@ -547,7 +551,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         canvasManager.render();
         refreshCanvas();
       }
-  } else if (currentTool === 'brush') {
+    } else if (currentTool === 'brush') {
       // Rozpocznij rysowanie pędzlem
       const color = hexToRgb(currentColor);
       const roundedX = Math.floor(x);
