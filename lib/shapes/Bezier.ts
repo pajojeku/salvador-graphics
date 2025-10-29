@@ -111,7 +111,24 @@ export class Bezier extends Shape {
 
   containsPoint(point: Point): boolean {
     // Hit test: check if near any control point
-    return this.points.some(pt => Math.abs(pt.x - point.x) < 8 && Math.abs(pt.y - point.y) < 8);
+    if (this.points.some(pt => Math.abs(pt.x - point.x) < 8 && Math.abs(pt.y - point.y) < 8)) {
+      return true;
+    }
+    // Hit test: check if near the curve (if enough points)
+    if (this.points.length >= 4) {
+      // Sample points along the curve and check distance
+      const steps = 200;
+      for (let t = 0; t <= steps; t++) {
+        const tt = t / steps;
+        const curvePt = this.getBezierPoint(this.points, tt);
+        const dx = curvePt.x - point.x;
+        const dy = curvePt.y - point.y;
+        if (dx * dx + dy * dy < 16) { // within 4px
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   getBoundingBox() {
