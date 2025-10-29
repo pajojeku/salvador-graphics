@@ -168,7 +168,6 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
   // Pobierz pozycje uchwytów resize dla kształtu
   const getResizeHandles = (shape: any): Array<{ x: number; y: number; type: string }> => {
     if (!shape) return [];
-    
     if (shape.type === 'circle') {
       const { center, radius } = shape as Circle;
       return [
@@ -183,7 +182,6 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       const y1 = rect.y;
       const x2 = rect.x + rect.width;
       const y2 = rect.y + rect.height;
-      
       return [
         { x: x1, y: y1, type: 'top-left' },
         { x: x2, y: y1, type: 'top-right' },
@@ -196,8 +194,11 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         { x: line.start.x, y: line.start.y, type: 'start' },
         { x: line.end.x, y: line.end.y, type: 'end' }
       ];
+    } else if (shape.type === 'bezier') {
+      // Każdy punkt kontrolny jako handle, type: 'pt-0', 'pt-1', ...
+      const bezier = shape as Bezier;
+      return bezier.points.map((pt, idx) => ({ x: pt.x, y: pt.y, type: `pt-${idx}` }));
     }
-    
     return [];
   };
 
@@ -205,17 +206,14 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
   const findHandleAtPoint = (x: number, y: number, shape: any): string | null => {
     const handles = getResizeHandles(shape);
     const threshold = 8; // Promień kliknięcia w pikselach
-    
     for (const handle of handles) {
       const dx = x - handle.x;
       const dy = y - handle.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      
       if (distance <= threshold) {
         return handle.type;
       }
     }
-    
     return null;
   };
 
@@ -699,19 +697,16 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       }
     }
 
-    // Zmiana rozmiaru (resize)
+    // Zmiana rozmiaru (resize) lub przesuwanie punktu kontrolnego Bezier
     if (isResizing && selectedShape && resizeHandle && resizeStartPoint && currentTool === 'select') {
       const shape = selectedShape.shape;
-      
       // Zaokrąglij do pełnych pikseli
       const dx = Math.round(x - resizeStartPoint.x);
       const dy = Math.round(y - resizeStartPoint.y);
-      
       // Zmień rozmiar tylko jeśli jest rzeczywista zmiana
       if (dx === 0 && dy === 0) {
         return;
       }
-      
       if (shape.type === 'circle') {
         const circle = shape as Circle;
         if (resizeHandle === 'right' || resizeHandle === 'left') {
@@ -747,8 +742,15 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
           line.end.x = Math.round(line.end.x + dx);
           line.end.y = Math.round(line.end.y + dy);
         }
+      } else if (shape.type === 'bezier' && resizeHandle.startsWith('pt-')) {
+        // Przesuwanie punktu kontrolnego Bezier
+        const bezier = shape as Bezier;
+        const idx = parseInt(resizeHandle.slice(3), 10);
+        if (!isNaN(idx)) {
+          const oldPt = bezier.points[idx];
+          bezier.moveControlPoint(idx, { x: oldPt.x + dx, y: oldPt.y + dy });
+        }
       }
-      
       setResizeStartPoint({ x: Math.round(x), y: Math.round(y) });
       throttledRender(canvasManager);
       return;

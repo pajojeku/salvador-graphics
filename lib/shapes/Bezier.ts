@@ -13,10 +13,12 @@ export class Bezier extends Shape {
   }
 
   draw(imageData: ImageData): void {
-    // Always show control points
-    this.drawSelectionHandles(imageData);
+    // Draw Bezier curve if at least 4 points, use strokeWidth for thickness
+    if (this.points.length >= 4) {
+      this.drawThickLineBezierCurve(imageData, this.points, this.color, Math.max(1, this.strokeWidth));
+    }
 
-    // Draw helper (blue) lines only if selected
+    // Draw helper (blue) lines only if selected, above the curve
     if (this.selected && this.points.length > 1) {
       const handleColor: Color = { r: 0, g: 120, b: 255, a: 255 };
       for (let i = 0; i < this.points.length - 1; i++) {
@@ -24,10 +26,8 @@ export class Bezier extends Shape {
       }
     }
 
-    // Draw Bezier curve if at least 4 points, use strokeWidth for thickness
-    if (this.points.length >= 4) {
-      this.drawThickLineBezierCurve(imageData, this.points, this.color, Math.max(1, this.strokeWidth));
-    }
+    // Always show control points (draw on top)
+    this.drawSelectionHandles(imageData);
   }
 
   // Draw Bezier curve with thickness
