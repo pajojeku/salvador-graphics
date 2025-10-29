@@ -20,21 +20,16 @@ export class Bezier extends Shape {
     // Draw points and helper lines only if selected
     if (this.selected) {
       const handleColor: Color = { r: 0, g: 120, b: 255, a: 255 };
-      const handleSize = 6;
-      this.points.forEach(pt => {
-        for (let dx = -handleSize / 2; dx < handleSize / 2; dx++) {
-          for (let dy = -handleSize / 2; dy < handleSize / 2; dy++) {
-            this.setPixel(imageData, pt.x + dx, pt.y + dy, handleColor);
-          }
-        }
-      });
-      // Draw lines between points
-      for (let i = 0; i < this.points.length - 1; i++) {
-        this.drawLine(imageData, this.points[i], this.points[i + 1], handleColor);
-      }
       this.drawSelectionHandles(imageData);
-    }
 
+      // Draw lines between points
+      if (this.points.length > 1) {
+        for (let i = 0; i < this.points.length - 1; i++) {
+            this.drawLine(imageData, this.points[i], this.points[i + 1], handleColor);
+        }
+      }
+      
+    }
   }
 
   // De Casteljau's algorithm for Bezier curve

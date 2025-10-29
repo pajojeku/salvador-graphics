@@ -611,6 +611,8 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         canvasManager.addShape(bezier);
         canvasManager.selectShape(bezier.id);
         setSelectedShape({ shape: bezier, offsetX: 0, offsetY: 0 });
+        canvasManager.render();
+        refreshCanvas();
       }
       setIsDrawing(false);
       setStartPoint(null);
