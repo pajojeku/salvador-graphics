@@ -710,18 +710,29 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
   const prevMouseRef = useRef<{ x: number; y: number } | null>(null);
   // Flaga trybu obracania polygonu
   const isRotatingPolygonRef = useRef(false);
+  // Flaga trybu skalowania polygonu (Shift+S)
+  const isScalingPolygonRef = useRef(false);
+  // Ref do zapamiętania początkowej odległości od środka skalowania
+  const scaleStartRef = useRef<{ dist: number; scale: number } | null>(null);
 
-  // Obsługa klawiszy shift+R do aktywacji trybu obracania polygonu
+  // Obsługa klawiszy shift+R do aktywacji trybu obracania polygonu oraz shift+S do skalowania
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'r' && e.shiftKey) {
         isRotatingPolygonRef.current = true;
+      }
+      if (e.key.toLowerCase() === 's' && e.shiftKey) {
+        isScalingPolygonRef.current = true;
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'r' || !e.shiftKey) {
         isRotatingPolygonRef.current = false;
         prevMouseRef.current = null;
+      }
+      if (e.key.toLowerCase() === 's' || !e.shiftKey) {
+        isScalingPolygonRef.current = false;
+        scaleStartRef.current = null;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -881,11 +892,33 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       return;
     }
 
-    // Przesuwanie lub obracanie figury (obrót dla polygon przy shift)
+    // Przesuwanie, obracanie lub skalowanie figury (obrót dla polygon przy shift+R, skalowanie przy shift+S)
     if (isDragging && selectedShape && currentTool === 'select') {
       const shape = selectedShape.shape;
-      // Obracanie polygonu myszką przy trzymaniu shift
-      if (shape.type === 'polygon' && isRotatingPolygonRef.current) {
+      // Skalowanie polygonu myszką przy trzymaniu shift+S
+      if (shape.type === 'polygon' && isScalingPolygonRef.current) {
+        const polygon = shape as Polygon;
+        const cx = polygon.rotationCenter?.x ?? 0;
+        const cy = polygon.rotationCenter?.y ?? 0;
+        // Oblicz odległość od środka skalowania do obecnej pozycji myszy
+        const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+        if (!scaleStartRef.current) {
+          // Ustal początkową odległość i skalę (1)
+          scaleStartRef.current = { dist, scale: 1 };
+          return;
+        }
+        const { dist: startDist } = scaleStartRef.current;
+        if (startDist === 0) return;
+        // Skala to stosunek obecnej odległości do początkowej
+        const scale = dist / startDist;
+        if (typeof polygon.scalePoints === 'function' && Math.abs(scale - 1) > 1e-4) {
+          polygon.scalePoints(scale, polygon.rotationCenter);
+          // Zaktualizuj startDist do nowej pozycji, by umożliwić płynne skalowanie
+          scaleStartRef.current = { dist, scale: 1 };
+          if (canvasManager) throttledRender(canvasManager);
+        }
+        return;
+      } else if (shape.type === 'polygon' && isRotatingPolygonRef.current) {
         const polygon = shape as Polygon;
         const cx = polygon.rotationCenter?.x ?? 0;
         const cy = polygon.rotationCenter?.y ?? 0;
@@ -907,8 +940,9 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         prevMouseRef.current = { x, y };
         return;
       } else {
-        // Resetuj pamięć jeśli nie obracamy
+        // Resetuj pamięć jeśli nie obracamy ani nie skalujemy
         if (prevMouseRef.current) prevMouseRef.current = null;
+        if (scaleStartRef.current) scaleStartRef.current = null;
       }
       // Dla obrazów i kostek RGB - pokazuj preview zamiast bezpośredniego przesuwania
       if (shape.type === 'image' || shape.type === 'rgbcube') {

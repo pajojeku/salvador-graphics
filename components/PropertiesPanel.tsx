@@ -599,9 +599,9 @@ export default function PropertiesPanel({
                       }}
                       className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
                     />
-                    {/* Rotation Center Controls */}
-                    <div className="mt-4 flex flex-col items-start ">
-                      <p className="text-xs text-zinc-400 mb-1">Rotation Center:</p>
+                    {/*  Center point Controls */}
+                    <div className="mt-4 flex flex-col items-start border-t border-zinc-700 pt-3 ">
+                      <p className="text-xs text-zinc-400 mb-1">Center point:</p>
                       <div className="flex items-center gap-2 mb-1">
                         <label className="text-xs text-zinc-400">X</label>
                         <input
@@ -702,7 +702,7 @@ export default function PropertiesPanel({
                           onChange={e => {
                             const val = e.target.value;
                             setMoveVector(v => {
-                              let dy = Number(-val);
+                              let dy = Number(val);
                               if (val === "" || val === "-") dy = 0;
                               return { ...v, dy, dyRaw: val };
                             });
@@ -720,6 +720,35 @@ export default function PropertiesPanel({
                           }
                         }}
                       >Move</button>
+                    </div>
+                  </div>
+
+                  {/* Scale Controls */}
+                  <div className="mt-2 flex flex-col items-start border-t border-zinc-700 pt-3">
+                    <span className="text-xs text-zinc-400 mb-1">Scale polygon:</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="text-xs text-zinc-400">factor</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        defaultValue={1}
+                        className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1 py-0.5"
+                        id="polygon-scale-factor-input"
+                      />
+                      <button
+                        className="px-2 py-0.5 bg-zinc-700 border border-zinc-600 rounded text-xs text-zinc-300 hover:bg-zinc-600 ml-2"
+                        title="Scale polygon by factor"
+                        onClick={() => {
+                          const input = document.getElementById('polygon-scale-factor-input') as HTMLInputElement;
+                          let scale = Number(input.value);
+                          if (!scale || isNaN(scale)) scale = 1;
+                          if (typeof polygon.scalePoints === 'function') {
+                            polygon.scalePoints(scale);
+                            onShapeUpdate?.();
+                          }
+                        }}
+                      >Scale</button>
                     </div>
                   </div>
                 </div>

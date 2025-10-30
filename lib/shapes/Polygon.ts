@@ -22,6 +22,15 @@ export class Polygon extends Shape {
     }
   }
 
+
+  scalePoints(scale: number, center?: Point) {
+    if (!center) center = this.rotationCenter;
+    this.points = this.points.map(pt => ({
+      x: center!.x + (pt.x - center!.x) * scale,
+      y: center!.y + (pt.y - center!.y) * scale
+    }));
+  }
+
   computeCentroid(): Point {
     if (this.points.length === 0) return { x: 0, y: 0 };
     const cx = this.points.reduce((sum, p) => sum + p.x, 0) / this.points.length;
