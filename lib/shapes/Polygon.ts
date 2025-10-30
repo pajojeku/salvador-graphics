@@ -8,11 +8,25 @@ export interface PolygonData extends ShapeData {
 export class Polygon extends Shape {
   points: Point[];
   rotation: number = 0; // radians
+  rotationCenter: Point;
 
-  constructor(points: Point[] = [], color?: Color, strokeWidth: number = 2, rotation: number = 0) {
+  constructor(points: Point[] = [], color?: Color, strokeWidth: number = 2, rotation: number = 0, rotationCenter?: Point) {
     super('polygon' as any, color, strokeWidth);
     this.points = points;
     this.rotation = rotation;
+    // Default rotation center to centroid
+    if (rotationCenter) {
+      this.rotationCenter = { ...rotationCenter };
+    } else {
+      this.rotationCenter = this.computeCentroid();
+    }
+  }
+
+  computeCentroid(): Point {
+    if (this.points.length === 0) return { x: 0, y: 0 };
+    const cx = this.points.reduce((sum, p) => sum + p.x, 0) / this.points.length;
+    const cy = this.points.reduce((sum, p) => sum + p.y, 0) / this.points.length;
+    return { x: cx, y: cy };
   }
 
   draw(imageData: ImageData): void {
@@ -37,8 +51,25 @@ export class Polygon extends Shape {
         this.drawHelperLine(imageData, pts[pts.length - 1], pts[0], handleColor);
       }
       this.drawSelectionHandles(imageData);
+      // Draw rotation center handle (red square)
+      this.drawRotationCenterHandle(imageData);
     }
   }
+
+private drawRotationCenterHandle(imageData: ImageData) {
+    const radius = 5;
+    const radiusSquared = radius * radius;
+    const offset = Math.ceil(radius);
+    const color: Color = { r: 255, g: 0, b: 0, a: 255 };
+    for (let dx = -offset; dx <= offset; dx++) {
+        for (let dy = -offset; dy <= offset; dy++) {
+            const distSquared = dx * dx + dy * dy;
+            if (distSquared <= radiusSquared) {
+                this.setPixel(imageData, Math.round(this.rotationCenter.x + dx), Math.round(this.rotationCenter.y + dy), color);
+            }
+        }
+    }
+}
 
   private drawThickLine(imageData: ImageData, p1: Point, p2: Point, color: Color, thickness: number) {
     let x0 = Math.floor(p1.x), y0 = Math.floor(p1.y);
@@ -142,9 +173,17 @@ export class Polygon extends Shape {
     return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
   }
 
+
+  // Reset rotation center to centroid
+  resetRotationCenter() {
+    this.rotationCenter = this.computeCentroid();
+  }
+
   move(dx: number, dy: number): void {
     // Move all points by dx, dy
     this.points = this.points.map(pt => ({ x: pt.x + dx, y: pt.y + dy }));
+    // After moving, reset rotation center to centroid
+    this.resetRotationCenter();
   }
 
   getControlPoints(): Point[] {
@@ -156,17 +195,21 @@ export class Polygon extends Shape {
       this.points[index] = { ...newPos };
     }
   }
-  // Rotate all points around the centroid by delta (in radians)
+  // Rotate all points around the rotation center by delta (in radians)
   rotatePoints(delta: number): void {
     if (this.points.length === 0) return;
-    const cx = this.points.reduce((sum, p) => sum + p.x, 0) / this.points.length;
-    const cy = this.points.reduce((sum, p) => sum + p.y, 0) / this.points.length;
+    const cx = this.rotationCenter.x;
+    const cy = this.rotationCenter.y;
     const cos = Math.cos(delta);
     const sin = Math.sin(delta);
     this.points = this.points.map(pt => ({
       x: cx + (pt.x - cx) * cos - (pt.y - cy) * sin,
       y: cy + (pt.x - cx) * sin + (pt.y - cy) * cos
     }));
+  }
+
+  moveRotationCenter(newPos: Point) {
+    this.rotationCenter = { ...newPos };
   }
 
   serialize(): PolygonData {
@@ -179,11 +222,18 @@ export class Polygon extends Shape {
       strokeWidth: this.strokeWidth,
       points: this.points.map(pt => ({ ...pt })),
       rotation: this.rotation,
+      rotationCenter: { ...this.rotationCenter },
     } as any;
   }
 
   clone(): Polygon {
-    const newPolygon = new Polygon(this.points.map(pt => ({ ...pt })), { ...this.color }, this.strokeWidth, this.rotation);
+    const newPolygon = new Polygon(
+      this.points.map(pt => ({ ...pt })),
+      { ...this.color },
+      this.strokeWidth,
+      this.rotation,
+      { ...this.rotationCenter }
+    );
     newPolygon.selected = this.selected;
     newPolygon.visible = this.visible;
     return newPolygon;
@@ -192,7 +242,8 @@ export class Polygon extends Shape {
   static deserialize(data: PolygonData): Polygon {
     const width = typeof data.strokeWidth === 'number' ? data.strokeWidth : 2;
     const rotation = typeof (data as any).rotation === 'number' ? (data as any).rotation : 0;
-    const polygon = new Polygon(data.points.map(pt => ({ ...pt })), data.color, width, rotation);
+    const rotationCenter = (data as any).rotationCenter ? { ...((data as any).rotationCenter) } : undefined;
+    const polygon = new Polygon(data.points.map(pt => ({ ...pt })), data.color, width, rotation, rotationCenter);
     polygon.id = data.id;
     polygon.selected = data.selected;
     polygon.visible = data.visible !== undefined ? data.visible : true;

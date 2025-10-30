@@ -523,7 +523,7 @@ export default function PropertiesPanel({
                       className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
                     />
                   </div>
-                  {/* Rotation Slider */}
+                  {/* Rotation Slider & Center */}
                   <div className="space-y-2 mt-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-zinc-400">Rotation</span>
@@ -567,6 +567,42 @@ export default function PropertiesPanel({
                       }}
                       className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
                     />
+                    {/* Rotation Center Controls */}
+                    <div className="mt-4 flex flex-col items-start">
+                      <p className="text-xs text-zinc-400 mb-1">Rotation Center:</p>
+                      <div className="flex items-center gap-2 mb-1">
+                        <label className="text-xs text-zinc-400">X</label>
+                        <input
+                          type="number"
+                          value={Math.round(polygon.rotationCenter?.x ?? 0)}
+                          onInput={e => {
+                            polygon.rotationCenter.x = Number((e.target as HTMLInputElement).value) || 0;
+                            onShapeUpdate?.();
+                          }}
+                          className="w-10 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1 py-0.5"
+                        />
+                        <label className="text-xs text-zinc-400">Y</label>
+                        <input
+                          type="number"
+                          value={Math.round(polygon.rotationCenter?.y ?? 0)}
+                          onInput={e => {
+                            polygon.rotationCenter.y = Number((e.target as HTMLInputElement).value) || 0;
+                            onShapeUpdate?.();
+                          }}
+                          className="w-10 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1 py-0.5"
+                        />
+                        <button
+                          className="px-2 py-0.5 bg-zinc-700 border border-zinc-600 rounded text-xs text-zinc-300 hover:bg-zinc-600 ml-2"
+                          title="Reset to center"
+                          onClick={() => {
+                            if (typeof polygon.resetRotationCenter === 'function') {
+                              polygon.resetRotationCenter();
+                              onShapeUpdate?.();
+                            }
+                          }}
+                        >Reset</button>
+                      </div>
+                    </div>
                   </div>
                   {/* Control Point Selection */}
                   <div className="flex items-center gap-2 mt-2">

@@ -197,9 +197,16 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         { x: line.start.x, y: line.start.y, type: 'start' },
         { x: line.end.x, y: line.end.y, type: 'end' }
       ];
-    } else if (shape.type === 'bezier' || shape.type === 'polygon') {
+    } else if (shape.type === 'bezier') {
       // Każdy punkt kontrolny jako handle, type: 'pt-0', 'pt-1', ...
       return shape.points.map((pt: {x:number, y:number}, idx: number) => ({ x: pt.x, y: pt.y, type: `pt-${idx}` }));
+    } else if (shape.type === 'polygon') {
+      // Punkty kontrolne + rotation center
+      const handles = shape.points.map((pt: {x:number, y:number}, idx: number) => ({ x: pt.x, y: pt.y, type: `pt-${idx}` }));
+      if (shape.rotationCenter) {
+        handles.push({ x: shape.rotationCenter.x, y: shape.rotationCenter.y, type: 'rotation-center' });
+      }
+      return handles;
     }
     return [];
   };
@@ -785,6 +792,12 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
           const oldPt = shape.points[idx];
           shape.moveControlPoint(idx, { x: oldPt.x + dx, y: oldPt.y + dy });
         }
+      } else if (shape.type === 'polygon' && resizeHandle === 'rotation-center') {
+        // Przesuwanie środka obrotu poligonu
+        shape.moveRotationCenter({
+          x: shape.rotationCenter.x + dx,
+          y: shape.rotationCenter.y + dy
+        });
       }
       setResizeStartPoint({ x: Math.round(x), y: Math.round(y) });
       throttledRender(canvasManager);
