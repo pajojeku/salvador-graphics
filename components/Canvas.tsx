@@ -667,8 +667,32 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     }
   };
 
+
   // Ref do zapamiętania poprzedniej pozycji myszy przy obracaniu polygonu
   const prevMouseRef = useRef<{ x: number; y: number } | null>(null);
+  // Flaga trybu obracania polygonu
+  const isRotatingPolygonRef = useRef(false);
+
+  // Obsługa klawiszy shift+R do aktywacji trybu obracania polygonu
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'r' && e.shiftKey) {
+        isRotatingPolygonRef.current = true;
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'r' || !e.shiftKey) {
+        isRotatingPolygonRef.current = false;
+        prevMouseRef.current = null;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasManager) return;
@@ -811,7 +835,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     if (isDragging && selectedShape && currentTool === 'select') {
       const shape = selectedShape.shape;
       // Obracanie polygonu myszką przy trzymaniu shift
-      if (shape.type === 'polygon' && e.shiftKey) {
+      if (shape.type === 'polygon' && isRotatingPolygonRef.current) {
         const polygon = shape as Polygon;
         const cx = polygon.rotationCenter?.x ?? 0;
         const cy = polygon.rotationCenter?.y ?? 0;
