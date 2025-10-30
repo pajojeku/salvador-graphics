@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 
+
 interface ShapeInputModalProps {
   isOpen: boolean;
-  shapeType: 'line' | 'rectangle' | 'circle' | 'rgbcube' | 'bezier' | null;
+  shapeType: 'line' | 'rectangle' | 'circle' | 'rgbcube' | 'bezier' | 'polygon' | null;
   onClose: () => void;
   onSubmit: (data: ShapeInputData) => void;
   canvasWidth: number;
@@ -18,38 +19,39 @@ export interface ShapeInputData {
   width?: number;
   height?: number;
   filled?: boolean;
-  
   // For Circle
   centerX?: number;
   centerY?: number;
   radius?: number;
   circleFilled?: boolean;
-  
   // For Line
   x1?: number;
   y1?: number;
   x2?: number;
   y2?: number;
-  
   // For RGB Cube
   cubeX?: number;
   cubeY?: number;
   size?: number;
-
   // For Bezier
   bezierPoints?: { x: number; y: number }[];
   bezierStrokeWidth?: number;
+  // For Polygon
+  polygonPoints?: { x: number; y: number }[];
+  polygonStrokeWidth?: number;
 }
 
 export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, canvasWidth, canvasHeight }: ShapeInputModalProps) {
   const [formData, setFormData] = useState<ShapeInputData>({});
   const [bezierPointIdx, setBezierPointIdx] = useState(0);
+  const [polygonPointIdx, setPolygonPointIdx] = useState(0);
   
   useEffect(() => {
     if (isOpen) {
       // Reset form when modal opens
       setFormData({});
       setBezierPointIdx(0);
+      setPolygonPointIdx(0);
     }
   }, [isOpen, shapeType]);
 
@@ -68,7 +70,20 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
       const data = {
         ...formData,
         bezierPoints: formData.bezierPoints && formData.bezierPoints.length >= 2 ? formData.bezierPoints : defaultPoints,
-        bezierStrokeWidth: typeof formData.bezierStrokeWidth === 'number' ? formData.bezierStrokeWidth : 3
+        bezierStrokeWidth: typeof formData.bezierStrokeWidth === 'number' ? formData.bezierStrokeWidth : 5
+      };
+      onSubmit(data);
+    } else if (shapeType === 'polygon') {
+      const defaultPoints = [
+        { x: 100, y: 100 },
+        { x: 200, y: 100 },
+        { x: 200, y: 200 },
+        { x: 100, y: 200 }
+      ];
+      const data = {
+        ...formData,
+        polygonPoints: formData.polygonPoints && formData.polygonPoints.length >= 3 ? formData.polygonPoints : defaultPoints,
+        polygonStrokeWidth: typeof formData.polygonStrokeWidth === 'number' ? formData.polygonStrokeWidth : 5
       };
       onSubmit(data);
     } else {
@@ -82,8 +97,105 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
   };
 
   const renderFields = () => {
-    switch (shapeType) {
-      case 'rectangle':
+  switch (shapeType) {
+      case 'polygon': {
+        // Default to 4 points if not set
+        const points = formData.polygonPoints ?? [
+          { x: 100, y: 100 },
+          { x: 200, y: 100 },
+          { x: 200, y: 200 },
+          { x: 100, y: 200 }
+        ];
+        const strokeWidth = formData.polygonStrokeWidth ?? 5;
+        // Ensure polygonPointIdx is in range
+        const safeIdx = Math.max(0, Math.min(polygonPointIdx, points.length - 1));
+        // Handlers
+        const updatePoint = (idx: number, axis: 'x' | 'y', value: number) => {
+          const newPoints = points.map((pt, i) => i === idx ? { ...pt, [axis]: value } : pt);
+          setFormData(prev => ({ ...prev, polygonPoints: newPoints }));
+        };
+        const addPoint = () => {
+          const curr = points[safeIdx] || { x: 0, y: 0 };
+          const newPoints = [...points];
+          newPoints.splice(safeIdx + 1, 0, { x: curr.x + 10, y: curr.y + 10 });
+          setFormData(prev => ({ ...prev, polygonPoints: newPoints }));
+          setPolygonPointIdx(safeIdx + 1);
+        };
+        const handleStrokeWidth = (val: number) => {
+          setFormData(prev => ({ ...prev, polygonStrokeWidth: val }));
+        };
+        return (
+          <>
+            {/* Stroke Width */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-zinc-300 mb-2">Stroke Width</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={strokeWidth}
+                  onChange={e => handleStrokeWidth(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-20 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-white"
+                />
+                <span className="text-xs text-zinc-400">px</span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={100}
+                value={strokeWidth}
+                onChange={e => handleStrokeWidth(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+            {/* Control Point Selection */}
+            <div className="flex items-center gap-2 mt-4">
+              <label className="text-xs text-zinc-400">Control point:</label>
+              <select
+                value={safeIdx}
+                onChange={e => setPolygonPointIdx(Number(e.target.value))}
+                className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1"
+              >
+                {points.map((pt, idx) => (
+                  <option key={idx} value={idx}>#{idx + 1}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="ml-2 px-2 py-1 bg-zinc-700 border border-zinc-600 rounded text-xs text-zinc-300 hover:bg-zinc-600"
+                title="Add new point"
+                onClick={addPoint}
+              >+
+              </button>
+            </div>
+            {/* X/Y for selected point */}
+            {points[safeIdx] && (
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <div>
+                  <label className="text-zinc-400 block mb-1">X</label>
+                  <input
+                    type="number"
+                    value={Math.round(points[safeIdx].x)}
+                    onChange={e => updatePoint(safeIdx, 'x', parseInt(e.target.value) || 0)}
+                    className="w-20 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-zinc-400 block mb-1">Y</label>
+                  <input
+                    type="number"
+                    value={Math.round(points[safeIdx].y)}
+                    onChange={e => updatePoint(safeIdx, 'y', parseInt(e.target.value) || 0)}
+                    className="w-20 bg-zinc-700 border border-zinc-600 rounded px-2 py-1 text-white"
+                  />
+                </div>
+              </div>
+            )}
+          </>
+        );
+      }
+  case 'rectangle':
         return (
           <>
             <div className="grid grid-cols-2 gap-4">
@@ -347,7 +459,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
           </>
         );
       
-      case 'bezier': {
+  case 'bezier': {
         // Default to 4 points if not set
         const points = formData.bezierPoints ?? [
           { x: 100, y: 100 },
@@ -355,7 +467,7 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
           { x: 200, y: 150 },
           { x: 250, y: 100 }
         ];
-        const strokeWidth = formData.bezierStrokeWidth ?? 3;
+        const strokeWidth = formData.bezierStrokeWidth ?? 5;
         // Ensure bezierPointIdx is in range
         const safeIdx = Math.max(0, Math.min(bezierPointIdx, points.length - 1));
         // Handlers
@@ -461,6 +573,8 @@ export default function ShapeInputModal({ isOpen, shapeType, onClose, onSubmit, 
         return 'Add RGB Cube';
       case 'bezier':
         return 'Add Bezier Curve';
+      case 'polygon':
+        return 'Add Polygon';
       default:
         return 'Add Shape';
     }

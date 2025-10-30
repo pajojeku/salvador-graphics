@@ -530,12 +530,13 @@ export default function PropertiesPanel({
                       <div className="flex items-center space-x-2">
                         <input 
                           type="number" 
-                          step="0.01"
-                          min="-3.14" 
-                          max="3.14" 
-                          value={polygon.rotation ? polygon.rotation.toFixed(2) : 0}
+                          step="1"
+                          min="-180" 
+                          max="180" 
+                          value={polygon.rotation ? (polygon.rotation * 180 / Math.PI).toFixed(0) : 0}
                           onInput={(e) => {
-                            const newRotation = Number((e.target as HTMLInputElement).value) || 0;
+                            const newDeg = Number((e.target as HTMLInputElement).value) || 0;
+                            const newRotation = newDeg * Math.PI / 180;
                             const delta = newRotation - (polygon.rotation || 0);
                             if (typeof polygon.rotatePoints === 'function') {
                               polygon.rotatePoints(delta);
@@ -545,17 +546,18 @@ export default function PropertiesPanel({
                           }}
                           className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1 w-16"
                         />
-                        <span className="text-xs text-zinc-400">rad</span>
+                        <span className="text-xs text-zinc-400">deg</span>
                       </div>
                     </div>
                     <input 
                       type="range" 
-                      min="-3.14" 
-                      max="3.14" 
-                      step="0.01"
-                      value={polygon.rotation || 0}
+                      min="-180" 
+                      max="180" 
+                      step="1"
+                      value={polygon.rotation ? (polygon.rotation * 180 / Math.PI) : 0}
                       onInput={(e) => {
-                        const newRotation = Number((e.target as HTMLInputElement).value) || 0;
+                        const newDeg = Number((e.target as HTMLInputElement).value) || 0;
+                        const newRotation = newDeg * Math.PI / 180;
                         const delta = newRotation - (polygon.rotation || 0);
                         if (typeof polygon.rotatePoints === 'function') {
                           polygon.rotatePoints(delta);

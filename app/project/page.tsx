@@ -87,7 +87,7 @@ function ProjectContent() {
   const canvasManagerRef = useRef<CanvasManager | null>(null);
   const canvasRefreshRef = useRef<(() => void) | null>(null);
   const [isShapeModalOpen, setIsShapeModalOpen] = useState(false);
-  const [modalShapeType, setModalShapeType] = useState<'line' | 'rectangle' | 'circle' | 'rgbcube' | 'bezier' | null>(null);
+  const [modalShapeType, setModalShapeType] = useState<'line' | 'rectangle' | 'circle' | 'rgbcube' | 'bezier' | 'polygon' | null>(null);
   const [isExportJPGModalOpen, setIsExportJPGModalOpen] = useState(false);
   const [isPointModalOpen, setIsPointModalOpen] = useState(false);
   const [pointModalValues, setPointModalValues] = useState({ brightness: 0, red: 0, green: 0, blue: 0 });
@@ -361,8 +361,8 @@ useEffect(() => {
   };
 
   const handleShapeModalOpen = (toolId: string) => {
-    if (['line', 'rectangle', 'circle', 'bezier'].includes(toolId)) {
-      setModalShapeType(toolId as 'line' | 'rectangle' | 'circle' | 'rgbcube' | 'bezier');
+    if (['line', 'rectangle', 'circle', 'bezier', 'polygon'].includes(toolId)) {
+      setModalShapeType(toolId as 'line' | 'rectangle' | 'circle' | 'rgbcube' | 'bezier' | 'polygon');
       setIsShapeModalOpen(true);
     }
   };
@@ -434,6 +434,17 @@ useEffect(() => {
         bezierPoints: data.bezierPoints,
         color,
         strokeWidth: data.bezierStrokeWidth
+      });
+    } else if (
+      modalShapeType === 'polygon' &&
+      data.polygonPoints &&
+      data.polygonPoints.length >= 3 &&
+      typeof data.polygonStrokeWidth === 'number'
+    ) {
+      canvasManagerRef.current.addShapeManually('polygon', {
+        polygonPoints: data.polygonPoints,
+        color,
+        strokeWidth: data.polygonStrokeWidth
       });
     }
 
