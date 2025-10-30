@@ -33,11 +33,13 @@ export default function PropertiesPanel({
   setBezierPointIdx = () => {}
 }: PropertiesPanelProps) {
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
+  // State for move by vector (Polygon only)
+  const [moveVector, setMoveVector] = useState<{ dx: number; dy: number; dxRaw?: string; dyRaw?: string }>({ dx: 0, dy: 0, dxRaw: "", dyRaw: "" });
 
   return (
-    <div className="bg-zinc-800">
+    <div className="bg-zinc-800 max-h-screen overflow-y-auto">
       {/* Properties Header */}
-      <div className="bg-zinc-800 border-b border-zinc-700 px-4 py-2">
+      <div className="bg-zinc-800 border-b border-zinc-700 px-4 py-2 sticky top-0 z-10">
         <div className="flex items-center space-x-2">
           <i className="ri-settings-3-line text-zinc-400 w-4 h-4 flex items-center justify-center"></i>
           <span className="text-sm text-zinc-300">Properties</span>
@@ -671,6 +673,54 @@ export default function PropertiesPanel({
                       </div>
                     </div>
                   )}
+
+                  {/* Move by Vector Controls */}
+                  <div className="mt-4 flex flex-col items-start border-t border-zinc-700 pt-3">
+                    <span className="text-xs text-zinc-400 mb-1">Move by vector:</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="text-xs text-zinc-400">dx</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={moveVector.dx === 0 ? (moveVector.dxRaw ?? "") : (moveVector.dxRaw ?? moveVector.dx.toString())}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setMoveVector(v => {
+                              let dx = Number(val);
+                              if (val === "" || val === "-") dx = 0;
+                              return { ...v, dx, dxRaw: val };
+                            });
+                          }}
+                          className="w-12 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1 py-0.5"
+                        />
+                      <label className="text-xs text-zinc-400">dy</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={moveVector.dy === 0 ? (moveVector.dyRaw ?? "") : (moveVector.dyRaw ?? moveVector.dy.toString())}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setMoveVector(v => {
+                              let dy = Number(-val);
+                              if (val === "" || val === "-") dy = 0;
+                              return { ...v, dy, dyRaw: val };
+                            });
+                          }}
+                          className="w-12 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1 py-0.5"
+                        />
+                      <button
+                        className="px-2 py-0.5 bg-zinc-700 border border-zinc-600 rounded text-xs text-zinc-300 hover:bg-zinc-600 ml-2"
+                        title="Move polygon by vector"
+                        onClick={() => {
+                          if (typeof polygon.move === 'function') {
+                            polygon.move(moveVector.dx, moveVector.dy);
+                              setMoveVector({ dx: 0, dy: 0, dxRaw: "", dyRaw: "" });
+                            onShapeUpdate?.();
+                          }
+                        }}
+                      >Move</button>
+                    </div>
+                  </div>
                 </div>
               );
             })()}
