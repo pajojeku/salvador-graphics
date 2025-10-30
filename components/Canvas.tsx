@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -23,6 +22,32 @@ interface CanvasProps {
 }
 
 export default function Canvas({ project, currentTool = 'select', currentColor = '#000000', strokeWidth = 1, canvasManagerRef, canvasRefreshRef, bezierPointIdx, setBezierPointIdx }: CanvasProps) {
+  // Flaga i dane do rysowania wektora (Shift+V)
+  const isDrawingVectorRef = useRef(false);
+  const vectorStartRef = useRef<{ x: number; y: number } | null>(null);
+  const vectorEndRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Obsługa klawiszy Shift+V do aktywacji trybu rysowania wektora
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'v' || e.key === 'V') && e.shiftKey) {
+        isDrawingVectorRef.current = true;
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'v' || e.key === 'V' || !e.shiftKey) {
+        isDrawingVectorRef.current = false;
+        vectorStartRef.current = null;
+        vectorEndRef.current = null;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [scale, setScale] = useState(1);
@@ -471,6 +496,19 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
 
   // Obsługa rysowania i przesuwania
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Tryb rysowania wektora (Ctrl+V)
+    if (isDrawingVectorRef.current && selectedShape && selectedShape.shape.type === 'polygon') {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const scaleX = project!.width / rect.width;
+      const scaleY = project!.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+      vectorStartRef.current = { x, y };
+      vectorEndRef.current = { x, y };
+      setIsDrawing(true); // Użyj isDrawing do śledzenia drag
+      return;
+    }
     if (!canvasManager) return;
 
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -695,6 +733,18 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
   }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Rysowanie wektora (Shift+V)
+    if (isDrawingVectorRef.current && isDrawing && vectorStartRef.current) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const scaleX = project!.width / rect.width;
+      const scaleY = project!.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+      vectorEndRef.current = { x, y };
+      forceUpdate({}); // wymuś odświeżenie overlay
+      return;
+    }
     if (!canvasManager) return;
 
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -827,7 +877,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         });
       }
       setResizeStartPoint({ x: Math.round(x), y: Math.round(y) });
-      throttledRender(canvasManager);
+  if (canvasManager) throttledRender(canvasManager);
       return;
     }
 
@@ -852,7 +902,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         if (typeof polygon.rotatePoints === 'function' && Math.abs(delta) > 1e-6) {
           polygon.rotatePoints(delta);
           polygon.rotation = (polygon.rotation || 0) + delta;
-          throttledRender(canvasManager);
+          if (canvasManager) throttledRender(canvasManager);
         }
         prevMouseRef.current = { x, y };
         return;
@@ -916,8 +966,8 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       const dy = newY - currentY;
 
       if (dx !== 0 || dy !== 0) {
-        shape.move(dx, dy);
-        throttledRender(canvasManager);
+  shape.move(dx, dy);
+  if (canvasManager) throttledRender(canvasManager);
       }
       return;
     }
@@ -1048,6 +1098,19 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
   };
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // Zakończ rysowanie wektora i przesuń polygon
+    if (isDrawingVectorRef.current && isDrawing && vectorStartRef.current && vectorEndRef.current && selectedShape && selectedShape.shape.type === 'polygon') {
+      const dx = vectorEndRef.current.x - vectorStartRef.current.x;
+      const dy = vectorEndRef.current.y - vectorStartRef.current.y;
+      if (dx !== 0 || dy !== 0) {
+  selectedShape.shape.move(dx, dy);
+  if (canvasManager) throttledRender(canvasManager);
+      }
+      vectorStartRef.current = null;
+      vectorEndRef.current = null;
+      setIsDrawing(false);
+      return;
+    }
     if (!canvasManager) return;
 
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -1207,7 +1270,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         </div>
       )}
       
-      <div className="absolute inset-0 overflow-auto">
+  <div className="absolute inset-0 overflow-auto">
         <div 
           className="min-h-full min-w-full flex items-center justify-center p-4"
           style={{
@@ -1261,7 +1324,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
             }}
           />
           
-          {/* Overlay canvas dla selection i preview */}
+          {/* Overlay canvas dla selection, preview i wektora */}
           <canvas
             width={project.width}
             height={project.height}
@@ -1278,55 +1341,56 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
               if (!overlayCanvas) return;
               const ctx = overlayCanvas.getContext('2d');
               if (!ctx) return;
-              
+
               // Wyczyść overlay
               ctx.clearRect(0, 0, project.width, project.height);
               ctx.imageSmoothingEnabled = false;
-              
+
               // Rysuj niebieską ramkę dla zaznaczonego kształtu
               if (selectedShape && currentTool === 'select') {
                 const shape = selectedShape.shape;
-                
+
                 // Dla RGB Cube - rysuj wireframe zamiast prostokąta
                 if (shape.type === 'rgbcube') {
                   const cube = shape as RGBCube;
                   const { vertices2D } = (cube as any).getVertices();
-                  
+
                   ctx.strokeStyle = '#3b82f6'; // Niebieski
                   ctx.lineWidth = 2 / scale;
                   ctx.setLineDash([4 / scale, 4 / scale]);
-                  
+
                   // 12 krawędzi kostki
                   const edges = [
                     [0, 1], [1, 2], [2, 3], [3, 0], // Front
                     [4, 5], [5, 6], [6, 7], [7, 4], // Back
                     [0, 4], [1, 5], [2, 6], [3, 7]  // Connect
                   ];
-                  
+
                   ctx.beginPath();
                   edges.forEach(([start, end]) => {
                     ctx.moveTo(vertices2D[start].x, vertices2D[start].y);
                     ctx.lineTo(vertices2D[end].x, vertices2D[end].y);
                   });
                   ctx.stroke();
-                  
+
                   ctx.setLineDash([]);
                 } else {
                   // Dla innych kształtów - prostokątne obramowanie
                   ctx.strokeStyle = '#3b82f6'; // Niebieski kolor
                   ctx.lineWidth = 2 / scale; // Dostosuj grubość do skali
                   ctx.setLineDash([4 / scale, 4 / scale]); // Przerywana linia
-                  
+
                   const bbox = shape.getBoundingBox();
                   if (bbox) {
                     ctx.strokeRect(bbox.x, bbox.y, bbox.width, bbox.height);
                   }
-                  
+
                   ctx.setLineDash([]); // Reset
                 }
               }
-              
+
               // Rysuj preview przesuwania (cień) - DLA OBRAZÓW I KOSTEK RGB
+
               if (isDragging && dragPreviewPosition && selectedShape) {
                 const bbox = selectedShape.shape.getBoundingBox();
                 if (bbox) {
@@ -1336,52 +1400,69 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
                     ctx.fillStyle = 'rgba(59, 130, 246, 0.1)'; // Półprzezroczyste wypełnienie
                     ctx.lineWidth = 2 / scale;
                     ctx.setLineDash([4 / scale, 4 / scale]);
-                    
+
                     ctx.fillRect(dragPreviewPosition.x, dragPreviewPosition.y, bbox.width, bbox.height);
                     ctx.strokeRect(dragPreviewPosition.x, dragPreviewPosition.y, bbox.width, bbox.height);
-                    
+
                     ctx.setLineDash([]);
                   } else if (selectedShape.shape.type === 'rgbcube') {
                     // Dla kostki RGB - wireframe 3D
                     const cube = selectedShape.shape as RGBCube;
-                    
+
                     // Tymczasowo zmień pozycję kostki na pozycję preview
                     const savedX = cube.x;
                     const savedY = cube.y;
                     cube.x = dragPreviewPosition.x;
                     cube.y = dragPreviewPosition.y;
-                    
                     // Pobierz wierzchołki (metoda getVertices jest private, użyjemy any)
                     const { vertices2D } = (cube as any).getVertices();
-                    
                     // Przywróć oryginalną pozycję
                     cube.x = savedX;
                     cube.y = savedY;
-                    
                     // Rysuj wireframe
                     ctx.strokeStyle = '#3b82f6'; // Niebieski
                     ctx.lineWidth = 2 / scale;
                     ctx.setLineDash([4 / scale, 4 / scale]);
-                    
                     // 12 krawędzi kostki
                     const edges = [
                       [0, 1], [1, 2], [2, 3], [3, 0], // Front
                       [4, 5], [5, 6], [6, 7], [7, 4], // Back
                       [0, 4], [1, 5], [2, 6], [3, 7]  // Connect
                     ];
-                    
                     ctx.beginPath();
                     edges.forEach(([start, end]) => {
                       ctx.moveTo(vertices2D[start].x, vertices2D[start].y);
                       ctx.lineTo(vertices2D[end].x, vertices2D[end].y);
                     });
                     ctx.stroke();
-                    
                     ctx.setLineDash([]);
                   }
                 }
               }
-              
+
+              // Rysuj wektor (strzałkę) jeśli aktywny tryb Ctrl+V
+              if (isDrawingVectorRef.current && vectorStartRef.current && vectorEndRef.current) {
+                const { x: x0, y: y0 } = vectorStartRef.current;
+                const { x: x1, y: y1 } = vectorEndRef.current;
+                ctx.save();
+                ctx.strokeStyle = '#22d3ee'; // Cyan
+                ctx.fillStyle = '#22d3ee';
+                ctx.lineWidth = 2 / scale;
+                ctx.beginPath();
+                ctx.moveTo(x0, y0);
+                ctx.lineTo(x1, y1);
+                ctx.stroke();
+                // Grot strzałki na końcu
+                const angle = Math.atan2(y1 - y0, x1 - x0);
+                const len = 16 / scale;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x1 - len * Math.cos(angle - Math.PI / 8), y1 - len * Math.sin(angle - Math.PI / 8));
+                ctx.lineTo(x1 - len * Math.cos(angle + Math.PI / 8), y1 - len * Math.sin(angle + Math.PI / 8));
+                ctx.lineTo(x1, y1);
+                ctx.fill();
+                ctx.restore();
+              }
               // Rysuj czerwoną linię przekroju RGB Cube
               if (rgbCubeCrossSection && rgbCubeCrossSection.crossSectionLine) {
                 const line = rgbCubeCrossSection.crossSectionLine;
@@ -1389,12 +1470,10 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
                   ctx.strokeStyle = '#ef4444'; // Czerwony
                   ctx.lineWidth = 3 / scale;
                   ctx.setLineDash([]); // Solid line
-                  
                   ctx.beginPath();
                   ctx.moveTo(line[0].x, line[0].y);
                   ctx.lineTo(line[1].x, line[1].y);
                   ctx.stroke();
-                  
                   // Dodaj małe kropki na końcach linii
                   ctx.fillStyle = '#ef4444';
                   [line[0], line[1]].forEach(point => {
