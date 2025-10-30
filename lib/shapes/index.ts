@@ -7,3 +7,4 @@ export * from './Image';
 export * from './RGBCube';
 
 export * from './Bezier';
+export * from './Polygon';

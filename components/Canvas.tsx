@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { CanvasManager } from '@/lib/CanvasManager';
-import { Line, Rectangle, Circle, Brush, RGBCube, Bezier } from '@/lib/shapes';
+import { Line, Rectangle, Circle, Brush, RGBCube, Bezier, Polygon } from '@/lib/shapes';
 import { projectStorage } from '@/lib/projectStorage';
 
 interface CanvasProps {
@@ -31,6 +31,7 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{ x: number; y: number } | null>(null);
   const [currentBezier, setCurrentBezier] = useState<Bezier | null>(null);
+  const [currentPolygon, setCurrentPolygon] = useState<Polygon | null>(null);
   const [, forceUpdate] = useState({});
   const [selectedShape, setSelectedShape] = useState<{ shape: any; offsetX: number; offsetY: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -196,10 +197,9 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         { x: line.start.x, y: line.start.y, type: 'start' },
         { x: line.end.x, y: line.end.y, type: 'end' }
       ];
-    } else if (shape.type === 'bezier') {
+    } else if (shape.type === 'bezier' || shape.type === 'polygon') {
       // Każdy punkt kontrolny jako handle, type: 'pt-0', 'pt-1', ...
-      const bezier = shape as Bezier;
-      return bezier.points.map((pt, idx) => ({ x: pt.x, y: pt.y, type: `pt-${idx}` }));
+      return shape.points.map((pt: {x:number, y:number}, idx: number) => ({ x: pt.x, y: pt.y, type: `pt-${idx}` }));
     }
     return [];
   };
@@ -482,8 +482,8 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       if (selectedShape) {
         const handle = findHandleAtPoint(x, y, selectedShape.shape);
         if (handle) {
-          // If it's a Bezier control point handle, update bezierPointIdx
-          if (selectedShape.shape.type === 'bezier' && handle.startsWith('pt-') && typeof setBezierPointIdx === 'function') {
+          // If it's a Bezier or Polygon control point handle, update bezierPointIdx
+          if ((selectedShape.shape.type === 'bezier' || selectedShape.shape.type === 'polygon') && handle.startsWith('pt-') && typeof setBezierPointIdx === 'function') {
             const idx = parseInt(handle.replace('pt-', ''));
             setBezierPointIdx(idx);
           }
@@ -531,6 +531,13 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         } else if (shape.type === 'bezier') {
           // When selecting a Bezier, default to first control point
           if (typeof setBezierPointIdx === 'function') setBezierPointIdx(0);
+        } else if (shape.type === 'polygon') {
+          // Ustal offset względem lewego górnego rogu bounding boxa polygonu
+          const polygon = shape as Polygon;
+          if (polygon.points.length > 0) {
+            shapeX = Math.min(...polygon.points.map(pt => pt.x));
+            shapeY = Math.min(...polygon.points.map(pt => pt.y));
+          }
         }
         setSelectedShape({
           shape,
@@ -590,32 +597,57 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         }
         ctx.putImageData(imageData, 0, 0);
       }
-    } else if (currentTool === 'bezier') {
-      // Rectangle-like: use strokeWidth from tool, always show control points
-      const color = hexToRgb(currentColor);
+  } else if (currentTool === 'bezier') {
+    const color = hexToRgb(currentColor);
+    if (
+      selectedShape &&
+      selectedShape.shape.type === 'bezier' &&
+      selectedShape.shape.selected &&
+      !isDragging &&
+      !isResizing
+    ) {
+      const bezier = selectedShape.shape;
+      bezier.points.push({ x, y });
+      bezier.color = color;
+      if (typeof strokeWidth === 'number') bezier.strokeWidth = strokeWidth;
+      setCurrentBezier(bezier);
+      canvasManager.render();
+      refreshCanvas();
+    } else {
+      const width = typeof strokeWidth === 'number' ? strokeWidth : 2;
+      const bezier = new Bezier([{ x, y }], color, width);
+      setCurrentBezier(bezier);
+      canvasManager.addShape(bezier);
+      canvasManager.selectShape(bezier.id);
+      setSelectedShape({ shape: bezier, offsetX: 0, offsetY: 0 });
+      canvasManager.render();
+      refreshCanvas();
+    }
+    setIsDrawing(false);
+    setStartPoint(null);
+  } else if (currentTool === 'polygon') {
+      const polyColor = hexToRgb(currentColor);
       if (
         selectedShape &&
-        selectedShape.shape.type === 'bezier' &&
+        selectedShape.shape.type === 'polygon' &&
         selectedShape.shape.selected &&
         !isDragging &&
         !isResizing
       ) {
-        const bezier = selectedShape.shape;
-        bezier.points.push({ x, y });
-        bezier.color = color;
-        if (typeof strokeWidth === 'number') bezier.strokeWidth = strokeWidth;
-        setCurrentBezier(bezier);
+        const polygon = selectedShape.shape;
+        polygon.points.push({ x, y });
+        polygon.color = polyColor;
+        if (typeof strokeWidth === 'number') polygon.strokeWidth = strokeWidth;
+        setCurrentPolygon(polygon);
         canvasManager.render();
         refreshCanvas();
       } else {
-        // Use strokeWidth from tool, like Rectangle
         const width = typeof strokeWidth === 'number' ? strokeWidth : 2;
-        const bezier = new Bezier([{ x, y }], color, width);
-        setCurrentBezier(bezier);
-        canvasManager.addShape(bezier);
-        canvasManager.selectShape(bezier.id);
-        setSelectedShape({ shape: bezier, offsetX: 0, offsetY: 0 });
-        // Always render after first point so control point is visible
+        const polygon = new Polygon([{ x, y }], polyColor, width);
+        setCurrentPolygon(polygon);
+        canvasManager.addShape(polygon);
+        canvasManager.selectShape(polygon.id);
+        setSelectedShape({ shape: polygon, offsetX: 0, offsetY: 0 });
         canvasManager.render();
         refreshCanvas();
       }
@@ -746,13 +778,12 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
           line.end.x = Math.round(line.end.x + dx);
           line.end.y = Math.round(line.end.y + dy);
         }
-      } else if (shape.type === 'bezier' && resizeHandle.startsWith('pt-')) {
-        // Przesuwanie punktu kontrolnego Bezier
-        const bezier = shape as Bezier;
+      } else if ((shape.type === 'bezier' || shape.type === 'polygon') && resizeHandle.startsWith('pt-')) {
+        // Przesuwanie punktu kontrolnego Bezier/Polygon
         const idx = parseInt(resizeHandle.slice(3), 10);
         if (!isNaN(idx)) {
-          const oldPt = bezier.points[idx];
-          bezier.moveControlPoint(idx, { x: oldPt.x + dx, y: oldPt.y + dy });
+          const oldPt = shape.points[idx];
+          shape.moveControlPoint(idx, { x: oldPt.x + dx, y: oldPt.y + dy });
         }
       }
       setResizeStartPoint({ x: Math.round(x), y: Math.round(y) });
@@ -802,6 +833,15 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         if (bezier.points.length > 0) {
           const xs = bezier.points.map(pt => pt.x);
           const ys = bezier.points.map(pt => pt.y);
+          currentX = Math.round(Math.min(...xs));
+          currentY = Math.round(Math.min(...ys));
+        }
+      } else if (shape.type === 'polygon') {
+        // Przesuwaj względem lewego górnego rogu bounding boxa wszystkich punktów
+        const polygon = shape as Polygon;
+        if (polygon.points.length > 0) {
+          const xs = polygon.points.map(pt => pt.x);
+          const ys = polygon.points.map(pt => pt.y);
           currentX = Math.round(Math.min(...xs));
           currentY = Math.round(Math.min(...ys));
         }

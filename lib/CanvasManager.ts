@@ -1,4 +1,4 @@
-import { Shape, Line, Rectangle, Circle, Brush, ImageShape, RGBCube, LineData, RectangleData, CircleData, Bezier, BezierData } from './shapes/index'
+import { Shape, Line, Rectangle, Circle, Brush, ImageShape, RGBCube, LineData, RectangleData, CircleData, Bezier, BezierData, Polygon, PolygonData } from './shapes/index'
 
 export interface CanvasState {
   shapes: Shape[];
@@ -148,7 +148,7 @@ export class CanvasManager {
   /**
    * Dodaj kształt z ręcznie wprowadzonymi danymi (z modala)
    */
-  addShapeManually(type: 'line' | 'rectangle' | 'circle' | 'rgbcube' | 'bezier', params: any): void {
+  addShapeManually(type: 'line' | 'rectangle' | 'circle' | 'rgbcube' | 'bezier' | 'polygon', params: any): void {
     let shape: Shape | null = null;
 
     if (type === 'rectangle') {
@@ -187,6 +187,12 @@ export class CanvasManager {
     } else if (type === 'bezier') {
       shape = new Bezier(
         params.bezierPoints,
+        params.color,
+        params.strokeWidth
+      );
+    } else if (type === 'polygon') {
+      shape = new Polygon(
+        params.polygonPoints,
         params.color,
         params.strokeWidth
       );
@@ -342,6 +348,9 @@ export class CanvasManager {
           break;
         case 'bezier':
           shape = Bezier.deserialize(shapeData as BezierData);
+          break;
+        case 'polygon':
+          shape = Polygon.deserialize(shapeData as PolygonData);
           break;
         case 'image':
           console.log('Deserializing image shape:', shapeData);

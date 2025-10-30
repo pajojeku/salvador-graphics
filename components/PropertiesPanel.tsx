@@ -487,97 +487,262 @@ export default function PropertiesPanel({
               </div>
             )}
 
+            {/* Polygon Properties */}
+            {selectedShape && selectedShape.type === 'polygon' && (() => {
+              const polygon = selectedShape as any;
+              return (
+                <div className="space-y-4 text-xs">
+                  {/* Stroke Width */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-zinc-400">Stroke</span>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="number" 
+                          min="1" 
+                          max="100" 
+                          value={selectedShape.strokeWidth}
+                          onInput={(e) => {
+                            selectedShape.strokeWidth = Math.max(1, Number((e.target as HTMLInputElement).value) || 1);
+                            onShapeUpdate?.();
+                          }}
+                          className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1 w-16"
+                        />
+                        <span className="text-xs text-zinc-400">px</span>
+                      </div>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="100" 
+                      value={selectedShape.strokeWidth}
+                      onInput={(e) => {
+                        selectedShape.strokeWidth = Math.max(1, Number((e.target as HTMLInputElement).value) || 1);
+                        onShapeUpdate?.();
+                      }}
+                      className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+                  {/* Rotation Slider */}
+                  <div className="space-y-2 mt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-zinc-400">Rotation</span>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          min="-3.14" 
+                          max="3.14" 
+                          value={polygon.rotation ? polygon.rotation.toFixed(2) : 0}
+                          onInput={(e) => {
+                            const newRotation = Number((e.target as HTMLInputElement).value) || 0;
+                            const delta = newRotation - (polygon.rotation || 0);
+                            if (typeof polygon.rotatePoints === 'function') {
+                              polygon.rotatePoints(delta);
+                            }
+                            polygon.rotation = newRotation;
+                            onShapeUpdate?.();
+                          }}
+                          className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1 w-16"
+                        />
+                        <span className="text-xs text-zinc-400">rad</span>
+                      </div>
+                    </div>
+                    <input 
+                      type="range" 
+                      min="-3.14" 
+                      max="3.14" 
+                      step="0.01"
+                      value={polygon.rotation || 0}
+                      onInput={(e) => {
+                        const newRotation = Number((e.target as HTMLInputElement).value) || 0;
+                        const delta = newRotation - (polygon.rotation || 0);
+                        if (typeof polygon.rotatePoints === 'function') {
+                          polygon.rotatePoints(delta);
+                        }
+                        polygon.rotation = newRotation;
+                        onShapeUpdate?.();
+                      }}
+                      className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
+                    />
+                  </div>
+                  {/* Control Point Selection */}
+                  <div className="flex items-center gap-2 mt-2">
+                    <label className="text-xs text-zinc-400">Control point:</label>
+                    <select
+                      value={bezierPointIdx}
+                      onChange={e => setBezierPointIdx(Number(e.target.value))}
+                      className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1"
+                    >
+                      {polygon.points.map((pt: {x:number, y:number}, idx: number) => (
+                        <option key={idx} value={idx}>#{idx+1}</option>
+                      ))}
+                    </select>
+                    <button
+                      className="px-2 py-1 bg-zinc-700 border border-zinc-600 rounded text-xs text-zinc-300 hover:bg-zinc-600"
+                      title="Add new point"
+                      onClick={() => {
+                        const idx = bezierPointIdx;
+                        const curr = polygon.points[idx] || {x:0, y:0};
+                        polygon.points.splice(idx+1, 0, { x: curr.x+10, y: curr.y+10 });
+                        setBezierPointIdx(idx+1);
+                        onShapeUpdate?.();
+                      }}
+                    >+
+                    </button>
+                    {polygon.points.length > 3 && (
+                      <button
+                        className="px-2 py-1 bg-zinc-700 border border-zinc-600 rounded text-xs text-zinc-300 hover:bg-zinc-600"
+                        title="Remove point"
+                        onClick={() => {
+                          const idx = bezierPointIdx;
+                          polygon.points.splice(idx, 1);
+                          setBezierPointIdx(Math.max(0, idx-1));
+                          onShapeUpdate?.();
+                        }}
+                      >-
+                      </button>
+                    )}
+                  </div>
+                  {/* X/Y for selected point */}
+                  {polygon.points[bezierPointIdx] && (
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div>
+                        <label className="text-zinc-400 block mb-1">X</label>
+                        <input
+                          type="number"
+                          value={Math.round(polygon.points[bezierPointIdx].x)}
+                          onInput={e => {
+                            polygon.points[bezierPointIdx].x = Number((e.target as HTMLInputElement).value) || 0;
+                            onShapeUpdate?.();
+                          }}
+                          className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-zinc-400 block mb-1">Y</label>
+                        <input
+                          type="number"
+                          value={Math.round(polygon.points[bezierPointIdx].y)}
+                          onInput={e => {
+                            polygon.points[bezierPointIdx].y = Number((e.target as HTMLInputElement).value) || 0;
+                            onShapeUpdate?.();
+                          }}
+                          className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Bezier Properties */}
-            {selectedShape instanceof Bezier && (
-              <div className="space-y-4 text-xs">
-                {/* Stroke Width */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-400">Stroke</span>
-                    <div className="flex items-center space-x-2">
-                      <input 
-                        type="number" 
-                        min="1" 
-                        max="100" 
-                        value={selectedShape.strokeWidth}
-                        onInput={(e) => {
-                          selectedShape.strokeWidth = Math.max(1, Number((e.target as HTMLInputElement).value) || 1);
-                          onShapeUpdate?.();
-                        }}
-                        className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1 w-16"
-                      />
-                      <span className="text-xs text-zinc-400">px</span>
+            {selectedShape instanceof Bezier && (() => {
+              const shapeWithPoints = selectedShape as any;
+              return (
+                <div className="space-y-4 text-xs">
+                  {/* Stroke Width */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-zinc-400">Stroke</span>
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="number" 
+                          min="1" 
+                          max="100" 
+                          value={selectedShape.strokeWidth}
+                          onInput={(e) => {
+                            selectedShape.strokeWidth = Math.max(1, Number((e.target as HTMLInputElement).value) || 1);
+                            onShapeUpdate?.();
+                          }}
+                          className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1 w-16"
+                        />
+                        <span className="text-xs text-zinc-400">px</span>
+                      </div>
                     </div>
+                    <input 
+                      type="range" 
+                      min="1" 
+                      max="100" 
+                      value={selectedShape.strokeWidth}
+                      onInput={(e) => {
+                        selectedShape.strokeWidth = Math.max(1, Number((e.target as HTMLInputElement).value) || 1);
+                        onShapeUpdate?.();
+                      }}
+                      className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
+                    />
                   </div>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="100" 
-                    value={selectedShape.strokeWidth}
-                    onInput={(e) => {
-                      selectedShape.strokeWidth = Math.max(1, Number((e.target as HTMLInputElement).value) || 1);
-                      onShapeUpdate?.();
-                    }}
-                    className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
-                  />
-                </div>
-                {/* Control Point Selection */}
-                <div className="flex items-center gap-2 mt-2">
-                  <label className="text-xs text-zinc-400">Control point:</label>
-                  <select
-                    value={bezierPointIdx}
-                    onChange={e => setBezierPointIdx(Number(e.target.value))}
-                    className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1"
-                  >
-                    {selectedShape.points.map((pt: {x:number, y:number}, idx: number) => (
-                      <option key={idx} value={idx}>#{idx+1}</option>
-                    ))}
-                  </select>
-                  <button
-                    className="ml-2 px-2 py-1 bg-zinc-700 border border-zinc-600 rounded text-xs text-zinc-300 hover:bg-zinc-600"
-                    title="Add new point"
-                    onClick={() => {
-                      // Add new point after current
-                      const idx = bezierPointIdx;
-                      const curr = selectedShape.points[idx] || {x:0, y:0};
-                      selectedShape.points.splice(idx+1, 0, { x: curr.x+10, y: curr.y+10 });
-                      setBezierPointIdx(idx+1);
-                      onShapeUpdate?.();
-                    }}
-                  >+
-                  </button>
-                </div>
-                {/* X/Y for selected point */}
-                {selectedShape.points[bezierPointIdx] && (
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    <div>
-                      <label className="text-zinc-400 block mb-1">X</label>
-                      <input
-                        type="number"
-                        value={Math.round(selectedShape.points[bezierPointIdx].x)}
-                        onInput={e => {
-                          selectedShape.points[bezierPointIdx].x = Number((e.target as HTMLInputElement).value) || 0;
+                  {/* Control Point Selection */}
+                  <div className="flex items-center gap-2 mt-2">
+                    <label className="text-xs text-zinc-400">Control point:</label>
+                    <select
+                      value={bezierPointIdx}
+                      onChange={e => setBezierPointIdx(Number(e.target.value))}
+                      className="bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-2 py-1"
+                    >
+                      {shapeWithPoints.points.map((pt: {x:number, y:number}, idx: number) => (
+                        <option key={idx} value={idx}>#{idx+1}</option>
+                      ))}
+                    </select>
+                    <button
+                      className="ml-0 px-2 py-1 bg-zinc-700 border border-zinc-600 rounded text-xs text-zinc-300 hover:bg-zinc-600"
+                      title="Add new point"
+                      onClick={() => {
+                        const idx = bezierPointIdx;
+                        const curr = shapeWithPoints.points[idx] || {x:0, y:0};
+                        shapeWithPoints.points.splice(idx+1, 0, { x: curr.x+10, y: curr.y+10 });
+                        setBezierPointIdx(idx+1);
+                        onShapeUpdate?.();
+                      }}
+                    >+
+                    </button>
+                    {shapeWithPoints.points.length > 2 && (
+                      <button
+                        className="ml-0 px-2 py-1 bg-zinc-700 border border-zinc-600 rounded text-xs text-zinc-300 hover:bg-zinc-600"
+                        title="Remove point"
+                        onClick={() => {
+                          const idx = bezierPointIdx;
+                          shapeWithPoints.points.splice(idx, 1);
+                          setBezierPointIdx(Math.max(0, idx-1));
                           onShapeUpdate?.();
                         }}
-                        className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-zinc-400 block mb-1">Y</label>
-                      <input
-                        type="number"
-                        value={Math.round(selectedShape.points[bezierPointIdx].y)}
-                        onInput={e => {
-                          selectedShape.points[bezierPointIdx].y = Number((e.target as HTMLInputElement).value) || 0;
-                          onShapeUpdate?.();
-                        }}
-                        className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
-                      />
-                    </div>
+                      >-
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
+                  {/* X/Y for selected point */}
+                  {shapeWithPoints.points[bezierPointIdx] && (
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div>
+                        <label className="text-zinc-400 block mb-1">X</label>
+                        <input
+                          type="number"
+                          value={Math.round(shapeWithPoints.points[bezierPointIdx].x)}
+                          onInput={e => {
+                            shapeWithPoints.points[bezierPointIdx].x = Number((e.target as HTMLInputElement).value) || 0;
+                            onShapeUpdate?.();
+                          }}
+                          className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-zinc-400 block mb-1">Y</label>
+                        <input
+                          type="number"
+                          value={Math.round(shapeWithPoints.points[bezierPointIdx].y)}
+                          onInput={e => {
+                            shapeWithPoints.points[bezierPointIdx].y = Number((e.target as HTMLInputElement).value) || 0;
+                            onShapeUpdate?.();
+                          }}
+                          className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* RGB Cube Properties */}
             {selectedShape instanceof RGBCube && (
