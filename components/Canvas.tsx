@@ -667,6 +667,9 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
     }
   };
 
+  // Ref do zapamiętania poprzedniej pozycji myszy przy obracaniu polygonu
+  const prevMouseRef = useRef<{ x: number; y: number } | null>(null);
+
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!canvasManager) return;
 
@@ -804,9 +807,35 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
       return;
     }
 
-    // Przesuwanie figury
+    // Przesuwanie lub obracanie figury (obrót dla polygon przy shift)
     if (isDragging && selectedShape && currentTool === 'select') {
       const shape = selectedShape.shape;
+      // Obracanie polygonu myszką przy trzymaniu shift
+      if (shape.type === 'polygon' && e.shiftKey) {
+        const polygon = shape as Polygon;
+        const cx = polygon.rotationCenter?.x ?? 0;
+        const cy = polygon.rotationCenter?.y ?? 0;
+        // Zapamiętaj poprzednią pozycję myszy w refie
+        if (!prevMouseRef.current) {
+          prevMouseRef.current = { x, y };
+          return;
+        }
+        const prev = prevMouseRef.current;
+        // Kąt od środka do poprzedniej i obecnej pozycji
+        const angle0 = Math.atan2(prev.y - cy, prev.x - cx);
+        const angle1 = Math.atan2(y - cy, x - cx);
+        const delta = angle1 - angle0;
+        if (typeof polygon.rotatePoints === 'function' && Math.abs(delta) > 1e-6) {
+          polygon.rotatePoints(delta);
+          polygon.rotation = (polygon.rotation || 0) + delta;
+          throttledRender(canvasManager);
+        }
+        prevMouseRef.current = { x, y };
+        return;
+      } else {
+        // Resetuj pamięć jeśli nie obracamy
+        if (prevMouseRef.current) prevMouseRef.current = null;
+      }
       // Dla obrazów i kostek RGB - pokazuj preview zamiast bezpośredniego przesuwania
       if (shape.type === 'image' || shape.type === 'rgbcube') {
         const newX = Math.round(x - selectedShape.offsetX);
@@ -814,7 +843,6 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         setDragPreviewPosition({ x: newX, y: newY });
         return;
       }
-
       // Dla innych kształtów - natychmiastowe przesuwanie
       const newX = Math.round(x - selectedShape.offsetX);
       const newY = Math.round(y - selectedShape.offsetY);
