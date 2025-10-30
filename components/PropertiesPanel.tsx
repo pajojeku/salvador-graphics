@@ -525,8 +525,38 @@ export default function PropertiesPanel({
                       className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
                     />
                   </div>
+
+                  {/* X/Y for selected point */}
+                  {polygon.points[bezierPointIdx] && (
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div>
+                        <label className="text-zinc-400 block mb-1">X</label>
+                        <input
+                          type="number"
+                          value={Math.round(polygon.points[bezierPointIdx].x)}
+                          onInput={e => {
+                            polygon.points[bezierPointIdx].x = Number((e.target as HTMLInputElement).value) || 0;
+                            onShapeUpdate?.();
+                          }}
+                          className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-zinc-400 block mb-1">Y</label>
+                        <input
+                          type="number"
+                          value={Math.round(polygon.points[bezierPointIdx].y)}
+                          onInput={e => {
+                            polygon.points[bezierPointIdx].y = Number((e.target as HTMLInputElement).value) || 0;
+                            onShapeUpdate?.();
+                          }}
+                          className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
+                        />
+                      </div>
+                    </div>
+                  )}
                   {/* Rotation Slider & Center */}
-                  <div className="space-y-2 mt-3">
+                  <div className="space-y-2 mt-4 border-t border-zinc-700 pt-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-zinc-400">Rotation</span>
                       <div className="flex items-center space-x-2">
@@ -570,7 +600,7 @@ export default function PropertiesPanel({
                       className="w-full h-2 bg-zinc-600 rounded-lg appearance-none cursor-pointer"
                     />
                     {/* Rotation Center Controls */}
-                    <div className="mt-4 flex flex-col items-start">
+                    <div className="mt-4 flex flex-col items-start ">
                       <p className="text-xs text-zinc-400 mb-1">Rotation Center:</p>
                       <div className="flex items-center gap-2 mb-1">
                         <label className="text-xs text-zinc-400">X</label>
@@ -607,7 +637,7 @@ export default function PropertiesPanel({
                     </div>
                   </div>
                   {/* Control Point Selection */}
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-2 mt-4 border-t border-zinc-700 pt-3">
                     <label className="text-xs text-zinc-400">Control point:</label>
                     <select
                       value={bezierPointIdx}
@@ -644,35 +674,6 @@ export default function PropertiesPanel({
                       </button>
                     )}
                   </div>
-                  {/* X/Y for selected point */}
-                  {polygon.points[bezierPointIdx] && (
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      <div>
-                        <label className="text-zinc-400 block mb-1">X</label>
-                        <input
-                          type="number"
-                          value={Math.round(polygon.points[bezierPointIdx].x)}
-                          onInput={e => {
-                            polygon.points[bezierPointIdx].x = Number((e.target as HTMLInputElement).value) || 0;
-                            onShapeUpdate?.();
-                          }}
-                          className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-zinc-400 block mb-1">Y</label>
-                        <input
-                          type="number"
-                          value={Math.round(polygon.points[bezierPointIdx].y)}
-                          onInput={e => {
-                            polygon.points[bezierPointIdx].y = Number((e.target as HTMLInputElement).value) || 0;
-                            onShapeUpdate?.();
-                          }}
-                          className="w-16 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1.5 py-0.5"
-                        />
-                      </div>
-                    </div>
-                  )}
 
                   {/* Move by Vector Controls */}
                   <div className="mt-4 flex flex-col items-start border-t border-zinc-700 pt-3">
@@ -691,7 +692,7 @@ export default function PropertiesPanel({
                               return { ...v, dx, dxRaw: val };
                             });
                           }}
-                          className="w-12 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1 py-0.5"
+                          className="w-10 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1 py-0.5"
                         />
                       <label className="text-xs text-zinc-400">dy</label>
                         <input
@@ -706,7 +707,7 @@ export default function PropertiesPanel({
                               return { ...v, dy, dyRaw: val };
                             });
                           }}
-                          className="w-12 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1 py-0.5"
+                          className="w-10 bg-zinc-700 text-zinc-300 text-xs border border-zinc-600 rounded px-1 py-0.5"
                         />
                       <button
                         className="px-2 py-0.5 bg-zinc-700 border border-zinc-600 rounded text-xs text-zinc-300 hover:bg-zinc-600 ml-2"
