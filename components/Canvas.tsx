@@ -679,13 +679,14 @@ export default function Canvas({ project, currentTool = 'select', currentColor =
         !isDragging &&
         !isResizing
       ) {
-        const polygon = selectedShape.shape;
-        polygon.points.push({ x, y });
-        polygon.color = polyColor;
-        if (typeof strokeWidth === 'number') polygon.strokeWidth = strokeWidth;
-        setCurrentPolygon(polygon);
-        canvasManager.render();
-        refreshCanvas();
+  const polygon = selectedShape.shape;
+  polygon.points.push({ x, y });
+  polygon.color = polyColor;
+  if (typeof strokeWidth === 'number') polygon.strokeWidth = strokeWidth;
+  polygon.resetRotationCenter(); // resetuj punkt centralny po każdym nowym punkcie
+  setCurrentPolygon(polygon);
+  canvasManager.render();
+  refreshCanvas();
       } else {
         const width = typeof strokeWidth === 'number' ? strokeWidth : 2;
         const polygon = new Polygon([{ x, y }], polyColor, width);

@@ -55,8 +55,13 @@ const MorphologyModal = ({
     // Default: all ones
     return Array.from({ length: kernelSize }, () => Array(kernelSize).fill(1));
   });
+  // Central point state
+  const [center, setCenter] = useState<{ x: number; y: number }>(() => {
+    const c = Math.floor(kernelSize / 2);
+    return { x: c, y: c };
+  });
 
-  // Update structElem when kernelSize changes
+  // Update structElem and center when kernelSize changes
   useEffect(() => {
     setStructElem(prev => {
       if (prev.length === kernelSize) return prev;
@@ -68,6 +73,9 @@ const MorphologyModal = ({
       );
       return newMat;
     });
+    // Reset center to middle
+    const c = Math.floor(kernelSize / 2);
+    setCenter({ x: c, y: c });
   }, [kernelSize]);
 
   // Draw preview with selected filter
@@ -94,17 +102,17 @@ const MorphologyModal = ({
     }
 
     let filtered: Uint8ClampedArray = src;
-    // Pass structElem to filters (TODO: update filter functions to accept it)
+    // Pass structElem and center to filters (TODO: update filter functions to accept center if needed)
     if (morphologyType === 'dilation') {
-      filtered = applyDilation(binarize(src), width, height, kernelSize, structElem);
+      filtered = applyDilation(binarize(src), width, height, kernelSize, structElem, center);
     } else if (morphologyType === 'erosion') {
-      filtered = applyErosion(binarize(src), width, height, kernelSize, structElem);
+      filtered = applyErosion(binarize(src), width, height, kernelSize, structElem, center);
     } else if (morphologyType === 'opening') {
-      filtered = applyOpening(binarize(src), width, height, kernelSize, structElem);
+      filtered = applyOpening(binarize(src), width, height, kernelSize, structElem, center);
     } else if (morphologyType === 'closing') {
-      filtered = applyClosing(binarize(src), width, height, kernelSize, structElem);
+      filtered = applyClosing(binarize(src), width, height, kernelSize, structElem, center);
     } else if (morphologyType === 'hitormiss') {
-      filtered = applyHitOrMiss(binarize(src), width, height, kernelSize, structElem);
+      filtered = applyHitOrMiss(binarize(src), width, height, kernelSize, structElem, center);
     } else if (morphologyType === 'none') {
       filtered = src;
     }
@@ -113,7 +121,7 @@ const MorphologyModal = ({
       previewImageData.data[i] = filtered[i];
     }
     ctx.putImageData(previewImageData, 0, 0);
-  }, [imageShape, isOpen, morphologyType, kernelSize]);
+  }, [imageShape, isOpen, morphologyType, kernelSize, structElem, center]);
 
   if (!isOpen) return null;
 
@@ -230,24 +238,38 @@ const MorphologyModal = ({
                         {structElem.map((row, y) => (
                           <tr key={y}>
                             {row.map((val, x) => (
-                              <td key={x} style={{ padding: 2 }}>
+                              <td key={x} style={{ padding: 2, position: 'relative' }}>
                                 <button
                                   type="button"
                                   style={{
                                     width: 28, height: 28,
                                     background: val ? '#6366f1' : '#222',
-                                    border: '1px solid #444',
+                                    border: (center.x === x && center.y === y) ? '2px solid #f59e42' : '1px solid #444',
                                     borderRadius: 4,
                                     color: val ? '#fff' : '#888',
                                     fontWeight: 'bold',
                                     cursor: 'pointer',
+                                    position: 'relative',
                                   }}
-                                  onClick={() => {
-                                    setStructElem(prev => prev.map((r, yy) =>
-                                      yy === y ? r.map((v, xx) => xx === x ? (v ? 0 : 1) : v) : r
-                                    ));
+                                  onClick={e => {
+                                    if (e.shiftKey) {
+                                      setCenter({ x, y });
+                                    } else {
+                                      setStructElem(prev => prev.map((r, yy) =>
+                                        yy === y ? r.map((v, xx) => xx === x ? (v ? 0 : 1) : v) : r
+                                      ));
+                                    }
                                   }}
-                                >{val ? 1 : 0}</button>
+                                  title={center.x === x && center.y === y ? 'Central point' : 'Click to toggle, Shift+Click to set center'}
+                                >
+                                  {val ? 1 : 0}
+                                  {center.x === x && center.y === y && (
+                                    <span style={{
+                                      position: 'absolute',
+                                      top: 2, right: 2, fontSize: 12, color: '#f59e42', pointerEvents: 'none',
+                                    }}>●</span>
+                                  )}
+                                </button>
                               </td>
                             ))}
                           </tr>
@@ -255,7 +277,11 @@ const MorphologyModal = ({
                       </tbody>
                     </table>
                   </div>
-                  <div className="text-xs text-zinc-400 mt-1 text-center">Click to toggle 0/1. <br />Used as structuring element for all operations.</div>
+                  <div className="text-xs text-zinc-400 mt-1 text-center">
+                    Click to toggle 0/1.<br />
+                    <span>Shift+Click to pick central point.<br /></span>
+                    <span className="text-amber-400">Orange frame = center ({center.x}, {center.y})</span>
+                  </div>
                 </div>
               </div>
             )}
