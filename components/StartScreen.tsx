@@ -56,7 +56,7 @@ export default function StartScreen() {
   const handleOpenFile = async () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.slv,.ppm,.jpg,.jpeg';
+  input.accept = '.slv,.ppm,.jpg,.jpeg,.png';
     
     input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
@@ -160,66 +160,54 @@ export default function StartScreen() {
           console.error('Error loading PPM:', error);
           alert('Failed to load PPM file: ' + (error as Error).message);
         }
-      } else if (extension === 'jpg' || extension === 'jpeg') {
+  } else if (extension === 'jpg' || extension === 'jpeg' || extension === 'png') {
         try {
           const { imageDB } = await import('@/lib/imageDB');
-          
           // Load image using browser's native image loader
-          const img = new Image();
+          const img = new window.Image();
           const imageUrl = URL.createObjectURL(file);
-          
           await new Promise<void>((resolve, reject) => {
             img.onload = () => resolve();
             img.onerror = () => reject(new Error('Failed to load image'));
             img.src = imageUrl;
           });
-
           // Convert to pixel data
           const canvas = document.createElement('canvas');
           canvas.width = img.width;
           canvas.height = img.height;
           const ctx = canvas.getContext('2d');
-          
           if (!ctx) {
             throw new Error('Failed to get canvas context');
           }
-
           ctx.drawImage(img, 0, 0);
           const imageData = ctx.getImageData(0, 0, img.width, img.height);
           const pixels = new Uint8ClampedArray(imageData.data);
-
-          // Save to imageDB (using P6 format and maxVal 255 for JPG)
+          // Save to imageDB (using P6 format and maxVal 255 for JPG/PNG)
           const imageId = await imageDB.saveImage(
             file.name,
             img.width,
             img.height,
-            255, // maxVal for JPG
+            255, // maxVal for JPG/PNG
             'P6', // format
             pixels
           );
-
           // Create thumbnail
           const maxWidth = 400;
           const maxHeight = 300;
           const needsResize = img.width > maxWidth || img.height > maxHeight;
-          
           let thumbnail: string;
           if (needsResize) {
             const aspectRatio = img.width / img.height;
-            
             let thumbWidth = maxWidth;
             let thumbHeight = maxWidth / aspectRatio;
-            
             if (thumbHeight > maxHeight) {
               thumbHeight = maxHeight;
               thumbWidth = maxHeight * aspectRatio;
             }
-            
             const thumbCanvas = document.createElement('canvas');
             thumbCanvas.width = thumbWidth;
             thumbCanvas.height = thumbHeight;
             const thumbCtx = thumbCanvas.getContext('2d');
-            
             if (thumbCtx) {
               thumbCtx.imageSmoothingEnabled = false;
               thumbCtx.drawImage(img, 0, 0, thumbWidth, thumbHeight);
@@ -228,18 +216,15 @@ export default function StartScreen() {
           } else {
             thumbnail = canvas.toDataURL('image/png');
           }
-
           // Clean up
           URL.revokeObjectURL(imageUrl);
-
           // Create project
           const newProject = projectStorage.save({
-            name: file.name.replace(/\.(jpg|jpeg)$/i, ''),
+            name: file.name.replace(/\.(jpg|jpeg|png)$/i, ''),
             width: img.width,
             height: img.height,
             thumbnail: thumbnail,
           });
-
           const canvasData = {
             width: img.width,
             height: img.height,
@@ -255,12 +240,11 @@ export default function StartScreen() {
               visible: true,
             }],
           };
-
           projectStorage.saveCanvasData(newProject.id, JSON.stringify(canvasData));
           router.push(`/project?id=${newProject.id}`);
         } catch (error) {
-          console.error('Error loading JPG:', error);
-          alert('Failed to load JPG file: ' + (error as Error).message);
+          console.error('Error loading image:', error);
+          alert('Failed to load image file: ' + (error as Error).message);
         }
       } else if (extension === 'slv') {
         try {
