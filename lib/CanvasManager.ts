@@ -365,6 +365,36 @@ export class CanvasManager {
               shape.setOriginalPixels(pixels);
               // Automatycznie nałóż filtr zgodnie z parametrami z projektu
               let filtered = pixels;
+              // 1. Morphology (jeśli ustawione)
+              if (shape.morphologyType && shape.morphologyType !== 'none') {
+                // Binarize helper
+                function binarize(input: Uint8ClampedArray, threshold = 128) {
+                  const out = new Uint8ClampedArray(input.length);
+                  for (let i = 0; i < input.length; i += 4) {
+                    const v = input[i];
+                    const bin = v >= threshold ? 255 : 0;
+                    out[i] = out[i + 1] = out[i + 2] = bin;
+                    out[i + 3] = input[i + 3];
+                  }
+                  return out;
+                }
+                const mtype = shape.morphologyType;
+                const ksize = shape.morphologyKernelSize ?? 3;
+                const morph = require('@/lib/morphology');
+                const bin = binarize(pixels);
+                if (mtype === 'dilation') {
+                  filtered = morph.applyDilation(bin, shape.width, shape.height, ksize);
+                } else if (mtype === 'erosion') {
+                  filtered = morph.applyErosion(bin, shape.width, shape.height, ksize);
+                } else if (mtype === 'opening') {
+                  filtered = morph.applyOpening(bin, shape.width, shape.height, ksize);
+                } else if (mtype === 'closing') {
+                  filtered = morph.applyClosing(bin, shape.width, shape.height, ksize);
+                } else if (mtype === 'hitormiss') {
+                  filtered = morph.applyHitOrMiss(bin, shape.width, shape.height, ksize);
+                }
+              }
+              // 2. Filtry klasyczne
               const filterType = shape.filterType;
               const maskSize = shape.maskSize;
               const sobelDir = shape.sobelDir;
@@ -372,23 +402,23 @@ export class CanvasManager {
               const sharpenStrength = shape.sharpenStrength;
               const gaussianSigma = shape.gaussianSigma;
               if (filterType === 'average') {
-                filtered = require('@/lib/filters').applyAverageFilter(pixels, shape.width, shape.height, maskSize ?? 3);
+                filtered = require('@/lib/filters').applyAverageFilter(filtered, shape.width, shape.height, maskSize ?? 3);
               } else if (filterType === 'median') {
-                filtered = require('@/lib/filters').applyMedianFilter(pixels, shape.width, shape.height, maskSize ?? 3);
+                filtered = require('@/lib/filters').applyMedianFilter(filtered, shape.width, shape.height, maskSize ?? 3);
               } else if (filterType === 'sobel') {
-                filtered = require('@/lib/filters').applySobelFilter(pixels, shape.width, shape.height, sobelDir ?? 'xy', sobelThreshold ?? 64);
+                filtered = require('@/lib/filters').applySobelFilter(filtered, shape.width, shape.height, sobelDir ?? 'xy', sobelThreshold ?? 64);
               } else if (filterType === 'sharpen') {
-                filtered = require('@/lib/filters').applySharpenFilter(pixels, shape.width, shape.height, sharpenStrength ?? 0.5);
+                filtered = require('@/lib/filters').applySharpenFilter(filtered, shape.width, shape.height, sharpenStrength ?? 0.5);
               } else if (filterType === 'gaussian') {
-                filtered = require('@/lib/filters').applyGaussianFilter(pixels, shape.width, shape.height, maskSize ?? 3, gaussianSigma ?? 1.0);
+                filtered = require('@/lib/filters').applyGaussianFilter(filtered, shape.width, shape.height, maskSize ?? 3, gaussianSigma ?? 1.0);
               }
-              // Nakładanie normalizacji na wynik filtra (lub oryginał)
+              // 3. Normalizacja
               if (shape.normalizationType === 'stretch') {
                 filtered = require('@/lib/normalization').histogramStretch(filtered, shape.width, shape.height);
               } else if (shape.normalizationType === 'equalize') {
                 filtered = require('@/lib/normalization').histogramEqualize(filtered, shape.width, shape.height);
               }
-              // BINARIZATION: nakładamy na końcu
+              // 4. BINARIZATION: nakładamy na końcu
               const binarizationType = shape.binarizationType;
               if (binarizationType && binarizationType !== 'none') {
                 const binarization = require('@/lib/binarization');

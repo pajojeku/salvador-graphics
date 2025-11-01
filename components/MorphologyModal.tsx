@@ -26,22 +26,29 @@ const morphologyOptions = [
 interface MorphologyModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onApply?: () => void;
+  onCancel?: () => void;
   imageShape?: ImageShape | null;
   morphologyType: MorphologyType;
   onMorphologyTypeChange: (type: MorphologyType) => void;
+  kernelSize: number;
+  onKernelSizeChange: (v: number) => void;
   onReset: () => void;
 }
 
 const MorphologyModal = ({
   isOpen,
   onClose,
+  onApply,
+  onCancel,
   imageShape,
   morphologyType,
   onMorphologyTypeChange,
+  kernelSize,
+  onKernelSizeChange,
   onReset,
 }: MorphologyModalProps) => {
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [kernelSize, setKernelSize] = useState(3);
 
   // Draw preview with selected filter
   useEffect(() => {
@@ -89,13 +96,22 @@ const MorphologyModal = ({
 
   if (!isOpen) return null;
 
+
   const handleCancel = () => {
-    onClose();
+    if (onCancel) {
+      onCancel();
+    } else {
+      onClose();
+    }
   };
 
   const handleApply = (e: React.FormEvent) => {
     e.preventDefault();
-    onClose();
+    if (onApply) {
+      onApply();
+    } else {
+      onClose();
+    }
   };
 
   const handleReset = () => {
@@ -168,7 +184,7 @@ const MorphologyModal = ({
                   max={15}
                   step={2}
                   value={kernelSize}
-                  onChange={e => setKernelSize(Number(e.target.value))}
+                  onChange={e => onKernelSizeChange(Number(e.target.value))}
                   className="w-full ml-2 bg-zinc-700 rounded-lg appearance-none h-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
                 <input
@@ -177,7 +193,7 @@ const MorphologyModal = ({
                   max={15}
                   step={2}
                   value={kernelSize}
-                  onChange={e => setKernelSize(Number(e.target.value))}
+                  onChange={e => onKernelSizeChange(Number(e.target.value))}
                   className="w-12 bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-right focus:outline-none"
                 />
                 <span className="text-xs text-zinc-400 w-16 text-center">{kernelSize}</span>

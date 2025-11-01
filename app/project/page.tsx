@@ -1,7 +1,7 @@
 'use client';
 
 import MorphologyModal  from '@/components/MorphologyModal';
-import { MorphologyType } from '@/lib/morphology';
+import { MorphologyType, applyDilation, applyErosion, applyOpening, applyClosing, applyHitOrMiss } from '@/lib/morphology';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
@@ -74,10 +74,25 @@ function ProjectContent() {
 
       // Morphology modal state/effect/handler (must be after selectedShape)
   const [isMorphologyModalOpen, setIsMorphologyModalOpen] = useState(false);
-  const [morphologyType, setMorphologyType] = useState<MorphologyType>('dilation');
+  const [morphologyType, setMorphologyType] = useState<MorphologyType>('none');
+  const [morphologyKernelSize, setMorphologyKernelSize] = useState<number>(3);
+  const lastMorphologyStateRef = useRef<{
+    morphologyType: MorphologyType;
+    kernelSize: number;
+  } | null>(null);
+  const lastMorphologyPixelsRef = useRef<Uint8ClampedArray | null>(null);
+
   useEffect(() => {
     function handleOpenMorphologyModal() {
       if (selectedShape && selectedShape.type === 'image') {
+        const img = selectedShape as ImageShape;
+        setMorphologyType(img.morphologyType || 'none');
+        setMorphologyKernelSize(img.morphologyKernelSize ?? 3);
+        lastMorphologyStateRef.current = {
+          morphologyType: img.morphologyType || 'none',
+          kernelSize: img.morphologyKernelSize ?? 3,
+        };
+        lastMorphologyPixelsRef.current = img.getCachedPixels() ? new Uint8ClampedArray(img.getCachedPixels()!) : null;
         setIsMorphologyModalOpen(true);
       } else {
         alert('Please select an image first.');
@@ -88,11 +103,78 @@ function ProjectContent() {
       window.removeEventListener('openMorphologyModal', handleOpenMorphologyModal);
     };
   }, [selectedShape]);
+
   const handleMorphologyModalClose = () => {
     setIsMorphologyModalOpen(false);
   };
+
+  const handleMorphologyModalCancel = () => {
+    if (selectedShape && selectedShape.type === 'image' && lastMorphologyStateRef.current && lastMorphologyPixelsRef.current) {
+      const img = selectedShape as ImageShape;
+      const last = lastMorphologyStateRef.current;
+      img.morphologyType = last.morphologyType;
+      img.morphologyKernelSize = last.kernelSize;
+      img.setCachedPixels(lastMorphologyPixelsRef.current);
+      setMorphologyType(last.morphologyType);
+      setMorphologyKernelSize(last.kernelSize);
+      handleShapeUpdate();
+    }
+    setIsMorphologyModalOpen(false);
+  };
+
+  const handleMorphologyModalApply = () => {
+    if (selectedShape && selectedShape.type === 'image') {
+      const img = selectedShape as ImageShape;
+      img.morphologyType = morphologyType;
+      img.morphologyKernelSize = morphologyKernelSize;
+      lastMorphologyStateRef.current = {
+        morphologyType,
+        kernelSize: morphologyKernelSize,
+      };
+      // Apply morphology to original pixels
+      const src = img.getOriginalPixels();
+      if (src) {
+        // Binarize helper
+        function binarize(input: Uint8ClampedArray, threshold = 128) {
+          const out = new Uint8ClampedArray(input.length);
+          for (let i = 0; i < input.length; i += 4) {
+            const v = input[i];
+            const bin = v >= threshold ? 255 : 0;
+            out[i] = out[i + 1] = out[i + 2] = bin;
+            out[i + 3] = input[i + 3];
+          }
+          return out;
+        }
+        let filtered = src;
+        if (morphologyType === 'dilation') {
+          filtered = applyDilation(binarize(src), img.width, img.height, morphologyKernelSize);
+        } else if (morphologyType === 'erosion') {
+          filtered = applyErosion(binarize(src), img.width, img.height, morphologyKernelSize);
+        } else if (morphologyType === 'opening') {
+          filtered = applyOpening(binarize(src), img.width, img.height, morphologyKernelSize);
+        } else if (morphologyType === 'closing') {
+          filtered = applyClosing(binarize(src), img.width, img.height, morphologyKernelSize);
+        } else if (morphologyType === 'hitormiss') {
+          filtered = applyHitOrMiss(binarize(src), img.width, img.height, morphologyKernelSize);
+        } else if (morphologyType === 'none') {
+          filtered = src;
+        }
+        img.setCachedPixels(filtered);
+      }
+      lastMorphologyPixelsRef.current = img.getCachedPixels();
+      handleShapeUpdate();
+    }
+    setIsMorphologyModalOpen(false);
+  };
+
   const handleMorphologyModalReset = () => {
-    setMorphologyType('dilation');
+    setMorphologyType('none');
+    setMorphologyKernelSize(3);
+    if (selectedShape && selectedShape.type === 'image') {
+      const img = selectedShape as ImageShape;
+      img.resetToOriginal();
+      handleShapeUpdate();
+    }
   };
 
   // Normalization modal state/effect/handler (must be after selectedShape)
@@ -806,9 +888,13 @@ useEffect(() => {
       <MorphologyModal
         isOpen={isMorphologyModalOpen}
         onClose={handleMorphologyModalClose}
+        onCancel={handleMorphologyModalCancel}
+        onApply={handleMorphologyModalApply}
         imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}
         morphologyType={morphologyType}
         onMorphologyTypeChange={setMorphologyType}
+        kernelSize={morphologyKernelSize}
+        onKernelSizeChange={setMorphologyKernelSize}
         onReset={handleMorphologyModalReset}
       />
 

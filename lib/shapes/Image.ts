@@ -12,6 +12,9 @@ export interface ImageData extends ShapeData {
 
 
 export class ImageShape extends Shape {
+  // Morphology
+  morphologyType: 'none' | 'dilation' | 'erosion' | 'opening' | 'closing' | 'hitormiss' = 'none';
+  morphologyKernelSize: number = 3;
   imageId: string;
   x: number;
   y: number;
@@ -199,6 +202,8 @@ export class ImageShape extends Shape {
       binarizationType: this.binarizationType,
       binarizationThreshold: this.binarizationThreshold,
       binarizationPercent: this.binarizationPercent,
+      morphologyType: this.morphologyType,
+      morphologyKernelSize: this.morphologyKernelSize,
     };
   }
 
@@ -246,7 +251,9 @@ export class ImageShape extends Shape {
     }
     if (typeof data.binarizationThreshold === 'number') image.binarizationThreshold = data.binarizationThreshold;
     if (typeof data.binarizationPercent === 'number') image.binarizationPercent = data.binarizationPercent;
-    // originalPixels i cachedPixels muszą być ustawione po wczytaniu obrazu z DB!
+  if (data.morphologyType) image.morphologyType = data.morphologyType;
+  if (typeof data.morphologyKernelSize === 'number') image.morphologyKernelSize = data.morphologyKernelSize;
+  // originalPixels i cachedPixels muszą być ustawione po wczytaniu obrazu z DB!
     return image;
   }
 }
