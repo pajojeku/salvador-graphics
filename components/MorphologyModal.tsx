@@ -48,7 +48,27 @@ const MorphologyModal = ({
   onKernelSizeChange,
   onReset,
 }: MorphologyModalProps) => {
+
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Structuring element state: 2D array of 0/1
+  const [structElem, setStructElem] = useState<number[][]>(() => {
+    // Default: all ones
+    return Array.from({ length: kernelSize }, () => Array(kernelSize).fill(1));
+  });
+
+  // Update structElem when kernelSize changes
+  useEffect(() => {
+    setStructElem(prev => {
+      if (prev.length === kernelSize) return prev;
+      // Resize matrix
+      const newMat = Array.from({ length: kernelSize }, (_, y) =>
+        Array.from({ length: kernelSize }, (_, x) =>
+          prev[y]?.[x] ?? 1
+        )
+      );
+      return newMat;
+    });
+  }, [kernelSize]);
 
   // Draw preview with selected filter
   useEffect(() => {
@@ -74,16 +94,17 @@ const MorphologyModal = ({
     }
 
     let filtered: Uint8ClampedArray = src;
+    // Pass structElem to filters (TODO: update filter functions to accept it)
     if (morphologyType === 'dilation') {
-      filtered = applyDilation(binarize(src), width, height, kernelSize);
+      filtered = applyDilation(binarize(src), width, height, kernelSize, structElem);
     } else if (morphologyType === 'erosion') {
-      filtered = applyErosion(binarize(src), width, height, kernelSize);
+      filtered = applyErosion(binarize(src), width, height, kernelSize, structElem);
     } else if (morphologyType === 'opening') {
-      filtered = applyOpening(binarize(src), width, height, kernelSize);
+      filtered = applyOpening(binarize(src), width, height, kernelSize, structElem);
     } else if (morphologyType === 'closing') {
-      filtered = applyClosing(binarize(src), width, height, kernelSize);
+      filtered = applyClosing(binarize(src), width, height, kernelSize, structElem);
     } else if (morphologyType === 'hitormiss') {
-      filtered = applyHitOrMiss(binarize(src), width, height, kernelSize);
+      filtered = applyHitOrMiss(binarize(src), width, height, kernelSize, structElem);
     } else if (morphologyType === 'none') {
       filtered = src;
     }
@@ -120,7 +141,7 @@ const MorphologyModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={handleCancel}>
-      <div className="bg-zinc-800 rounded-lg shadow-2xl border border-zinc-700 w-full max-w-md" onClick={e => e.stopPropagation()}>
+      <div className="bg-zinc-800 rounded-lg shadow-2xl border border-zinc-700 " onClick={e => e.stopPropagation()}>
         <form onSubmit={handleApply}>
           <div className="flex items-center justify-between p-4 border-b border-zinc-700">
             <h2 className="text-lg font-semibold text-white flex items-center space-x-2">
@@ -133,72 +154,111 @@ const MorphologyModal = ({
           </div>
           <div className="p-6 space-y-6">
             <div className="flex flex-col gap-4 mb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <label className="block text-sm font-medium text-zinc-300 mr-2">Morphology type:</label>
-                  <select
-                    value={morphologyType}
-                    onChange={e => onMorphologyTypeChange(e.target.value as MorphologyType)}
-                    className="bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-sm focus:outline-none border border-zinc-600 h-8"
-                    style={{ minWidth: 180 }}
-                  >
-                    {morphologyOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  type="button"
-                  className="flex items-center gap-1 px-2 h-8 bg-zinc-700 text-zinc-100 rounded border border-zinc-600 hover:bg-zinc-600 transition-colors text-sm font-normal"
-                  onClick={handleReset}
-                  title="Reset morphology params"
-                >
-                  <i className="ri-refresh-line"></i>
-                  Reset
-                </button>
-              </div>
-              
+              {/* Dropdown and reset moved below, nothing here now */}
             </div>
             {imageShape && (imageShape as any).cachedPixels && (
-              <div className="flex flex-col items-center mb-4">
-                <canvas
-                  ref={previewCanvasRef}
-                  width={imageShape.width}
-                  height={imageShape.height}
-                  style={{
-                    height: 240,
-                    borderRadius: 8,
-                    border: '1px solid #444',
-                    background: '#222',
-                    marginBottom: 8
-                  }}
-                />
-                <div className="text-xs text-zinc-400 mb-1">Image preview</div>
-              </div>)}
-              {/* Kernel size slider (for all except future custom structuring elements) */}
-              <div className="flex items-center space-x-2 mt-2">
-                <label className="block text-sm font-medium text-zinc-300 w-32">Kernel size</label>
-                <input
-                  type="range"
-                  min={3}
-                  max={15}
-                  step={2}
-                  value={kernelSize}
-                  onChange={e => onKernelSizeChange(Number(e.target.value))}
-                  className="w-full ml-2 bg-zinc-700 rounded-lg appearance-none h-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <input
-                  type="number"
-                  min={3}
-                  max={15}
-                  step={2}
-                  value={kernelSize}
-                  onChange={e => onKernelSizeChange(Number(e.target.value))}
-                  className="w-12 bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-right focus:outline-none"
-                />
-                <span className="text-xs text-zinc-400 w-16 text-center">{kernelSize}</span>
+              <div className="flex flex-row items-start justify-center gap-8 mb-4">
+                {/* Left: Preview and kernel size */}
+                <div className="flex flex-col items-center">
+                  <div className="flex flex-col w-full mb-2">
+                    <div className="flex items-center w-full mb-2">
+                      <label className="block text-sm font-medium text-zinc-300 mr-2">Morphology type:</label>
+                      <select
+                        value={morphologyType}
+                        onChange={e => onMorphologyTypeChange(e.target.value as MorphologyType)}
+                        className="bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-sm focus:outline-none border border-zinc-600 h-8"
+                        style={{ minWidth: 180 }}
+                      >
+                        {morphologyOptions.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 px-2 h-8 bg-zinc-700 text-zinc-100 rounded border border-zinc-600 hover:bg-zinc-600 transition-colors text-sm font-normal ml-4"
+                        onClick={handleReset}
+                        title="Reset morphology params"
+                      >
+                        <i className="ri-refresh-line"></i>
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                  <canvas
+                    ref={previewCanvasRef}
+                    width={imageShape.width}
+                    height={imageShape.height}
+                    style={{
+                      height: 240,
+                      borderRadius: 8,
+                      border: '1px solid #444',
+                      background: '#222',
+                      marginBottom: 8,
+                      marginTop: 8
+                    }}
+                  />
+                  <div className="text-xs text-zinc-400 mb-1">Image preview</div>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <label className="block text-sm font-medium text-zinc-300 w-32">Kernel size</label>
+                    <input
+                      type="range"
+                      min={3}
+                      max={15}
+                      step={2}
+                      value={kernelSize}
+                      onChange={e => onKernelSizeChange(Number(e.target.value))}
+                      className="w-full ml-2 bg-zinc-700 rounded-lg appearance-none h-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <input
+                      type="number"
+                      min={3}
+                      max={15}
+                      step={2}
+                      value={kernelSize}
+                      onChange={e => onKernelSizeChange(Number(e.target.value))}
+                      className="w-12 bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-right focus:outline-none"
+                    />
+                    <span className="text-xs text-zinc-400 w-16 text-center">{kernelSize}</span>
+                  </div>
+                </div>
+                {/* Right: Structuring element editor */}
+                <div className="flex flex-col items-center mt-2">
+                  <label className="block text-sm font-medium text-zinc-300 mb-1">Structuring element</label>
+                  <div style={{ display: 'inline-block', border: '1px solid #444', borderRadius: 4, background: '#222', padding: 4 }}>
+                    <table style={{ borderCollapse: 'collapse' }}>
+                      <tbody>
+                        {structElem.map((row, y) => (
+                          <tr key={y}>
+                            {row.map((val, x) => (
+                              <td key={x} style={{ padding: 2 }}>
+                                <button
+                                  type="button"
+                                  style={{
+                                    width: 28, height: 28,
+                                    background: val ? '#6366f1' : '#222',
+                                    border: '1px solid #444',
+                                    borderRadius: 4,
+                                    color: val ? '#fff' : '#888',
+                                    fontWeight: 'bold',
+                                    cursor: 'pointer',
+                                  }}
+                                  onClick={() => {
+                                    setStructElem(prev => prev.map((r, yy) =>
+                                      yy === y ? r.map((v, xx) => xx === x ? (v ? 0 : 1) : v) : r
+                                    ));
+                                  }}
+                                >{val ? 1 : 0}</button>
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="text-xs text-zinc-400 mt-1 text-center">Click to toggle 0/1. <br />Used as structuring element for all operations.</div>
+                </div>
               </div>
-            
+            )}
           </div>
           <div className="flex justify-end space-x-3 p-4 border-t border-zinc-700 bg-zinc-900/30">
             <button

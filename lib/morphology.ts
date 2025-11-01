@@ -20,7 +20,8 @@ function getNeighborhood(
   y: number,
   width: number,
   height: number,
-  kernelSize: number
+  kernelSize: number,
+  structElem?: number[][]
 ): number[] {
   const half = Math.floor(kernelSize / 2);
   const values: number[] = [];
@@ -28,8 +29,12 @@ function getNeighborhood(
     for (let dx = -half; dx <= half; dx++) {
       const nx = x + dx;
       const ny = y + dy;
+      const sx = dx + half;
+      const sy = dy + half;
       if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-        values.push(src[(ny * width + nx) * 4]);
+        if (!structElem || structElem[sy]?.[sx]) {
+          values.push(src[(ny * width + nx) * 4]);
+        }
       }
     }
   }
@@ -40,13 +45,14 @@ export function applyDilation(
   src: Uint8ClampedArray,
   width: number,
   height: number,
-  kernelSize: number = 3
+  kernelSize: number = 3,
+  structElem?: number[][]
 ): Uint8ClampedArray {
   const out = new Uint8ClampedArray(src.length);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const values = getNeighborhood(src, x, y, width, height, kernelSize);
-      const max = Math.max(...values);
+      const values = getNeighborhood(src, x, y, width, height, kernelSize, structElem);
+      const max = values.length ? Math.max(...values) : 0;
       for (let c = 0; c < 4; c++) {
         out[(y * width + x) * 4 + c] = c === 3 ? src[(y * width + x) * 4 + 3] : max;
       }
@@ -59,13 +65,14 @@ export function applyErosion(
   src: Uint8ClampedArray,
   width: number,
   height: number,
-  kernelSize: number = 3
+  kernelSize: number = 3,
+  structElem?: number[][]
 ): Uint8ClampedArray {
   const out = new Uint8ClampedArray(src.length);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const values = getNeighborhood(src, x, y, width, height, kernelSize);
-      const min = Math.min(...values);
+      const values = getNeighborhood(src, x, y, width, height, kernelSize, structElem);
+      const min = values.length ? Math.min(...values) : 255;
       for (let c = 0; c < 4; c++) {
         out[(y * width + x) * 4 + c] = c === 3 ? src[(y * width + x) * 4 + 3] : min;
       }
@@ -78,30 +85,39 @@ export function applyOpening(
   src: Uint8ClampedArray,
   width: number,
   height: number,
-  kernelSize: number = 3
+  kernelSize: number = 3,
+  structElem?: number[][]
 ): Uint8ClampedArray {
-  return applyDilation(applyErosion(src, width, height, kernelSize), width, height, kernelSize);
+  return applyDilation(
+    applyErosion(src, width, height, kernelSize, structElem),
+    width, height, kernelSize, structElem
+  );
 }
 
 export function applyClosing(
   src: Uint8ClampedArray,
   width: number,
   height: number,
-  kernelSize: number = 3
+  kernelSize: number = 3,
+  structElem?: number[][]
 ): Uint8ClampedArray {
-  return applyErosion(applyDilation(src, width, height, kernelSize), width, height, kernelSize);
+  return applyErosion(
+    applyDilation(src, width, height, kernelSize, structElem),
+    width, height, kernelSize, structElem
+  );
 }
 
 export function applyHitOrMiss(
   src: Uint8ClampedArray,
   width: number,
   height: number,
-  kernelSize: number = 3
+  kernelSize: number = 3,
+  structElem?: number[][]
 ): Uint8ClampedArray {
   // Simple version: thinning (erosion) and thickening (dilation) overlay
   // For real hit-or-miss, need structuring element pattern
-  const eroded = applyErosion(src, width, height, kernelSize);
-  const dilated = applyDilation(src, width, height, kernelSize);
+  const eroded = applyErosion(src, width, height, kernelSize, structElem);
+  const dilated = applyDilation(src, width, height, kernelSize, structElem);
   const out = new Uint8ClampedArray(src.length);
   for (let i = 0; i < src.length; i += 4) {
     // If pixel is foreground in eroded but not in dilated, mark as hit (thinning)
