@@ -75,6 +75,14 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
     setActiveMenu(null);
   };
 
+  const handleMorphology = () => {
+    if (typeof window !== 'undefined') {
+      const event = new CustomEvent('openMorphologyModal');
+      window.dispatchEvent(event);
+    }
+    setActiveMenu(null);
+  };
+
   return (
     <div className="bg-zinc-900 border-b border-zinc-700 px-4 py-2">
       <div className="flex items-center justify-between">
@@ -173,6 +181,13 @@ export default function Header({ projectName, onExportPNG, onExportJPG, onSavePr
                       >
                         <i className="ri-contrast-2-line"></i>
                         <span>Binarization</span>
+                      </button>
+                      <button
+                        onClick={handleMorphology}
+                        className="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700 flex items-center space-x-2 cursor-pointer"
+                      >
+                        <i className="ri-shape-line"></i>
+                        <span>Morphological Filters</span>
                       </button>
                     </div>
                   )}

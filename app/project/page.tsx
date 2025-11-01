@@ -1,6 +1,7 @@
-
 'use client';
 
+import MorphologyModal  from '@/components/MorphologyModal';
+import { MorphologyType } from '@/lib/morphology';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Header from '@/components/Header';
@@ -32,6 +33,8 @@ import { ImageShape } from '@/lib/shapes/Image';
 function ProjectContent() {
 
 
+
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const [selectedTool, setSelectedTool] = useState('select');
@@ -46,6 +49,9 @@ function ProjectContent() {
   const [selectedShape, setSelectedShape] = useState<Shape | null>(null);
   // Bezier control point index for PropertiesPanel
   const [bezierPointIdx, setBezierPointIdx] = useState(0);
+
+
+
 
   // Binarization modal state/effect/handler
   const [isBinarizationModalOpen, setIsBinarizationModalOpen] = useState(false);
@@ -64,6 +70,29 @@ function ProjectContent() {
   }, [selectedShape]);
   const handleBinarizationModalClose = () => {
     setIsBinarizationModalOpen(false);
+  };
+
+      // Morphology modal state/effect/handler (must be after selectedShape)
+  const [isMorphologyModalOpen, setIsMorphologyModalOpen] = useState(false);
+  const [morphologyType, setMorphologyType] = useState<MorphologyType>('dilation');
+  useEffect(() => {
+    function handleOpenMorphologyModal() {
+      if (selectedShape && selectedShape.type === 'image') {
+        setIsMorphologyModalOpen(true);
+      } else {
+        alert('Please select an image first.');
+      }
+    }
+    window.addEventListener('openMorphologyModal', handleOpenMorphologyModal);
+    return () => {
+      window.removeEventListener('openMorphologyModal', handleOpenMorphologyModal);
+    };
+  }, [selectedShape]);
+  const handleMorphologyModalClose = () => {
+    setIsMorphologyModalOpen(false);
+  };
+  const handleMorphologyModalReset = () => {
+    setMorphologyType('dilation');
   };
 
   // Normalization modal state/effect/handler (must be after selectedShape)
@@ -772,6 +801,16 @@ useEffect(() => {
           </div>
         </div>
       </div>
+
+      {/* Morphology Modal */}
+      <MorphologyModal
+        isOpen={isMorphologyModalOpen}
+        onClose={handleMorphologyModalClose}
+        imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}
+        morphologyType={morphologyType}
+        onMorphologyTypeChange={setMorphologyType}
+        onReset={handleMorphologyModalReset}
+      />
 
       {/* Shape Input Modal */}
       <ShapeInputModal
