@@ -58,11 +58,13 @@ export class Polygon extends Shape {
       }
       if (pts.length >= 3) {
         this.drawHelperLine(imageData, pts[pts.length - 1], pts[0], handleColor);
+
+         // Draw rotation center handle (red square)
+        this.drawRotationCenterHandle(imageData);
       }
-      this.drawSelectionHandles(imageData);
-      // Draw rotation center handle (red square)
-      this.drawRotationCenterHandle(imageData);
     }
+    
+    this.drawSelectionHandles(imageData);
   }
 
 private drawRotationCenterHandle(imageData: ImageData) {
