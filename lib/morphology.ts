@@ -122,17 +122,42 @@ export function applyHitOrMiss(
   structElem?: number[][],
   center?: { x: number; y: number }
 ): Uint8ClampedArray {
-  // Simple version: thinning (erosion) and thickening (dilation) overlay
-  // For real hit-or-miss, need structuring element pattern
-  const eroded = applyErosion(src, width, height, kernelSize, structElem, center);
-  const dilated = applyDilation(src, width, height, kernelSize, structElem, center);
+  // Klasyczny hit-or-miss: SE z 1 (foreground), -1 (background), 0 (ignore)
+  // src: binarny obraz (0/255)
   const out = new Uint8ClampedArray(src.length);
-  for (let i = 0; i < src.length; i += 4) {
-    // If pixel is foreground in eroded but not in dilated, mark as hit (thinning)
-    out[i] = eroded[i] === 255 && dilated[i] !== 255 ? 255 : 0;
-    out[i + 1] = out[i];
-    out[i + 2] = out[i];
-    out[i + 3] = src[i + 3];
+  const cx = center?.x ?? Math.floor(kernelSize / 2);
+  const cy = center?.y ?? Math.floor(kernelSize / 2);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let match = true;
+      for (let sy = 0; sy < kernelSize; sy++) {
+        for (let sx = 0; sx < kernelSize; sx++) {
+          const seVal = structElem?.[sy]?.[sx] ?? 0;
+          if (seVal === 0) continue; // ignoruj
+          const dx = sx - cx;
+          const dy = sy - cy;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
+            match = false;
+            break;
+          }
+          const pixel = src[(ny * width + nx) * 4];
+          if (seVal === 1 && pixel !== 255) {
+            match = false;
+            break;
+          }
+          if (seVal === -1 && pixel !== 0) {
+            match = false;
+            break;
+          }
+        }
+        if (!match) break;
+      }
+      const idx = (y * width + x) * 4;
+      out[idx] = out[idx + 1] = out[idx + 2] = match ? 255 : 0;
+      out[idx + 3] = src[idx + 3];
+    }
   }
   return out;
 }

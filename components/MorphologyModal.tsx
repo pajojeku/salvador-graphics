@@ -147,6 +147,29 @@ const MorphologyModal = ({
     onReset();
   };
 
+  // Obsługa zmiany typu filtra z resetem parametrów
+  const handleTypeChange = (type: MorphologyType) => {
+    onMorphologyTypeChange(type);
+    onKernelSizeChange(3);
+    // Domyślne SE i center
+    if (type === 'hitormiss') {
+      // Krzyż: środek i ramiona
+      setStructElem([
+        [0, 1, 0],
+        [1, 1, 1],
+        [0, 1, 0],
+      ]);
+      setCenter({ x: 1, y: 1 });
+    } else {
+      setStructElem([
+        [1, 1, 1],
+        [1, 1, 1],
+        [1, 1, 1],
+      ]);
+      setCenter({ x: 1, y: 1 });
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={handleCancel}>
       <div className="bg-zinc-800 rounded-lg shadow-2xl border border-zinc-700 " onClick={e => e.stopPropagation()}>
@@ -173,7 +196,7 @@ const MorphologyModal = ({
                       <label className="block text-sm font-medium text-zinc-300 mr-2">Morphology type:</label>
                       <select
                         value={morphologyType}
-                        onChange={e => onMorphologyTypeChange(e.target.value as MorphologyType)}
+                        onChange={e => handleTypeChange(e.target.value as MorphologyType)}
                         className="bg-zinc-700 text-zinc-100 rounded px-2 py-1 text-sm focus:outline-none border border-zinc-600 h-8"
                         style={{ minWidth: 180 }}
                       >
@@ -243,10 +266,16 @@ const MorphologyModal = ({
                                   type="button"
                                   style={{
                                     width: 28, height: 28,
-                                    background: val ? '#6366f1' : '#222',
+                                    background:
+                                      val === 1 ? '#6366f1'
+                                      : val === -1 ? '#f43f5e'
+                                      : '#222',
                                     border: (center.x === x && center.y === y) ? '2px solid #f59e42' : '1px solid #444',
                                     borderRadius: 4,
-                                    color: val ? '#fff' : '#888',
+                                    color:
+                                      val === 1 ? '#fff'
+                                      : val === -1 ? '#fff'
+                                      : '#888',
                                     fontWeight: 'bold',
                                     cursor: 'pointer',
                                     position: 'relative',
@@ -256,13 +285,24 @@ const MorphologyModal = ({
                                       setCenter({ x, y });
                                     } else {
                                       setStructElem(prev => prev.map((r, yy) =>
-                                        yy === y ? r.map((v, xx) => xx === x ? (v ? 0 : 1) : v) : r
+                                        yy === y ? r.map((v, xx) => {
+                                          if (xx !== x) return v;
+                                          if (morphologyType === 'hitormiss') {
+                                            // Cykl: 1 -> 0 -> -1 -> 1
+                                            if (v === 1) return 0;
+                                            if (v === 0) return -1;
+                                            return 1;
+                                          } else {
+                                            // Tylko 1 <-> 0
+                                            return v === 1 ? 0 : 1;
+                                          }
+                                        }) : r
                                       ));
                                     }
                                   }}
-                                  title={center.x === x && center.y === y ? 'Central point' : 'Click to toggle, Shift+Click to set center'}
+                                  title={center.x === x && center.y === y ? 'Central point' : (morphologyType === 'hitormiss' ? 'Click to cycle 1/0/-1, Shift+Click to set center' : 'Click to toggle 1/0, Shift+Click to set center')}
                                 >
-                                  {val ? 1 : 0}
+                                  {morphologyType === 'hitormiss' ? (val === 1 ? 1 : val === 0 ? 0 : '-1') : (val === 1 ? 1 : 0)}
                                   {center.x === x && center.y === y && (
                                     <span style={{
                                       position: 'absolute',
@@ -278,7 +318,17 @@ const MorphologyModal = ({
                     </table>
                   </div>
                   <div className="text-xs text-zinc-400 mt-1 text-center">
-                    Click to toggle 0/1.<br />
+                    {morphologyType === 'hitormiss' ? (
+                      <>
+                        Click to cycle 1/0/-1.<br />
+                        1 = search white, 0 = ignore, -1 = search black<br />
+                      </>
+                    ) : (
+                      <>
+                        Click to toggle 1/0.<br />
+                        1 = active, 0 = ignore<br />
+                      </>
+                    )}
                     <span>Shift+Click to pick central point.<br /></span>
                     <span className="text-amber-400">Orange frame = center ({center.x}, {center.y})</span>
                   </div>
