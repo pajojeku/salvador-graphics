@@ -21,6 +21,9 @@ or here:
 
 <div align="center">
     <img src="early_screenshot.png" alt="Early screenshot" />
+    <img src="filters.png" alt="Image filtering" />
+    <img src="color_detection.png" alt="Color detection" />
+    <img src="normalization.png" alt="Normalization" />
 </div>
 
 
