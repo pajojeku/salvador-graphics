@@ -1,6 +1,7 @@
 'use client';
 
 import MorphologyModal  from '@/components/MorphologyModal';
+import ColorDetectionModal from '@/components/ColorDetectionModal';
 import { MorphologyType, applyDilation, applyErosion, applyOpening, applyClosing, applyHitOrMiss } from '@/lib/morphology';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -106,6 +107,25 @@ function ProjectContent() {
 
   const handleMorphologyModalClose = () => {
     setIsMorphologyModalOpen(false);
+  };
+
+  // Color Detection modal state/effect/handler
+  const [isColorDetectionModalOpen, setIsColorDetectionModalOpen] = useState(false);
+  useEffect(() => {
+    function handleOpenColorDetectionModal() {
+      if (selectedShape && selectedShape.type === 'image') {
+        setIsColorDetectionModalOpen(true);
+      } else {
+        alert('Please select an image first.');
+      }
+    }
+    window.addEventListener('openColorDetectionModal', handleOpenColorDetectionModal);
+    return () => {
+      window.removeEventListener('openColorDetectionModal', handleOpenColorDetectionModal);
+    };
+  }, [selectedShape]);
+  const handleColorDetectionModalClose = () => {
+    setIsColorDetectionModalOpen(false);
   };
 
   const handleMorphologyModalCancel = () => {
@@ -977,6 +997,12 @@ useEffect(() => {
             projectStorage.update(currentProject.id, { ...currentProject });
           }
         }}
+      />
+      {/* Color Detection Modal */}
+      <ColorDetectionModal
+        isOpen={isColorDetectionModalOpen}
+        onClose={handleColorDetectionModalClose}
+        imageShape={selectedShape && selectedShape.type === 'image' ? (selectedShape as ImageShape) : null}
       />
     </>
   );

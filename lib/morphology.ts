@@ -11,7 +11,6 @@ export type MorphologyType =
 
 export interface MorphologyOptions {
   kernelSize?: number; // odd, >= 3
-  // For hit-or-miss, could add structuring element pattern in future
 }
 
 function getNeighborhood(
